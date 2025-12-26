@@ -1,6 +1,7 @@
 package Model;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class Document
 {
@@ -8,6 +9,9 @@ public class Document
     private String docType;
     private String target; // file - relative path, link - URL
     private LocalDateTime lastUpdate;
+
+    private static final DateTimeFormatter DOC_FMT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     public Document(String docName, String documentType, String target)
     {
@@ -75,7 +79,7 @@ public class Document
 
     // toString
     @Override public String toString() {
-        return docName + " | " + docType + " | " + target + " | Last update: " + lastUpdate;
+        return docName + " | " + docType + " | " + target + " | Last update: " + lastUpdate.format(DOC_FMT);
     }
 
     // Methods

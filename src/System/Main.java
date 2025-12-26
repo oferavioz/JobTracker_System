@@ -14,20 +14,35 @@
 // GUI class and components: JobTrackerGUI
 
 package System;
-
 import Model.*;
-import Threads.*;
+import javax.swing.*;
+import java.time.LocalDateTime;
 
 public class Main {
     public static void main(String[] args) {
 
-        // 1) Initialize the system controller
-        JobTracker tracker = new JobTracker();
+        SwingUtilities.invokeLater(() -> {
 
-        // 2) Initialize GUI in a separate class/file
-        JobTrackerGUI gui = new JobTrackerGUI(tracker);
+            JobTracker tracker = new JobTracker();
 
-        // 3) Show the GUI
-        gui.start();
+            UserProfile demo = new UserProfile("Ofer Avioz", "oferavioz@gmail.com", "123456789", "054-7829888", "Hi-Tech");
+            tracker.addUser(demo);
+
+            Company c = new Company("DemoCompany", "Software", "https://demo.com");
+            JobPosition p = new JobPosition(
+                    "POS-001",
+                    "Junior Dev",
+                    "Hi-Tech",
+                    "Tel Aviv",
+                    "Full-time",
+                    "Active",
+                    "seed for overdue test"
+            );
+
+            ApplyFor app = tracker.addApplication(demo, p, c, "LinkedIn", "seeded app");
+            app.setDateApplied(LocalDateTime.now().minusDays(15));
+
+            new JobTrackerGUI(tracker);
+        });
     }
 }

@@ -1,6 +1,7 @@
 package Model;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class NotifyAbout
 {
@@ -8,22 +9,15 @@ public class NotifyAbout
     private Event event;
     private LocalDateTime createdAt;
     private boolean seen;
-    private String message;
 
-    public NotifyAbout(UserProfile user, Event event, String message) {
+    private static final DateTimeFormatter NOTIF_FMT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+    public NotifyAbout(UserProfile user, Event event) {
         setUser(user);
         setEvent(event);
         setCreatedAt(LocalDateTime.now());
         setSeen(false);
-        setMessage(message);
-    }
-    public NotifyAbout(UserProfile user, Event event, LocalDateTime createdAt, boolean seen, String message)
-    {
-        setUser(user);
-        setEvent(event);
-        setCreatedAt(createdAt);
-        setSeen(seen);
-        setMessage(message);
     }
 
     // Setters
@@ -49,15 +43,6 @@ public class NotifyAbout
         this.seen = seen;
     }
 
-    public void setMessage(String message) {
-        if (message == null || message.trim().isEmpty()) {
-            this.message = "";
-            return;
-        }
-        String value = message.trim().replaceAll("\\s+", " ");
-        this.message = value;
-    }
-
     // Getters
     public UserProfile getUser() {
         return user;
@@ -71,16 +56,16 @@ public class NotifyAbout
     public boolean isSeen() {
         return seen;
     }
-    public String getMessage() {
-        return message;
-    }
 
     // toString
-    @Override public String toString() {
-        return "NotifyAbout: " +
-                user.getEmail() + " | Event #" + event.getEventID() + " | Created: " + createdAt +
-                " | Seen: " + seen + (message == null ||
-                message.isEmpty() ? "" : " | Message: " + message);
+    @Override
+    public String toString() {
+        String id = (event == null) ? "-" : String.valueOf(event.getEventID());
+        String type = (event == null || event.getType() == null || event.getType().isBlank()) ? "Other" : event.getType().trim();
+        String title = (event == null || event.getTitle() == null || event.getTitle().isBlank()) ? "(no title)" : event.getTitle().trim();
+        String when = (event == null || event.getDateTime() == null) ? "N/A" : event.getDateTime().format(NOTIF_FMT);
+        String seenText = seen ? "Yes" : "No";
+        return "Event #" + id + " | " + title + " | On: " + when + " | Seen: " + seenText;
     }
 
     // Methods
@@ -92,21 +77,16 @@ public class NotifyAbout
         if (event == null || event.getDateTime() == null) {
             return false;
         }
-        if (seen) {
-            return false;
-        }
         if (event.isNotified()) {
             return false;
         }
-
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime eventTime = event.getDateTime();
         LocalDateTime triggerTime = eventTime.minusHours(24);
+        boolean afterOrEqTrigger = now.isAfter(triggerTime) || now.isEqual(triggerTime);
+        boolean beforeEvent = now.isBefore(eventTime);
 
-        boolean afterOrEqualTrigger = now.isAfter(triggerTime) || now.isEqual(triggerTime);
-        boolean beforeOrEqualEvent = now.isBefore(eventTime) || now.isEqual(eventTime);
-
-        return afterOrEqualTrigger && beforeOrEqualEvent;
+        return afterOrEqTrigger && beforeEvent;
     }
 
     //Marks that this notification has been triggered

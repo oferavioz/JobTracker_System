@@ -108,7 +108,16 @@ public class UserProfile
         if (!authenticate(oldPassword)) {
             throw new IllegalArgumentException("Old password does not match.");
         }
+        if (newPassword.equals(oldPassword)){
+            throw new IllegalArgumentException("New password must be different from the old password.");
+        }
         setPassword(newPassword);
+    }
+
+    public void updateProfile(String newFullName, String newPhone, String newFieldOfSearch) {
+        setFullName(newFullName);
+        setPhone(newPhone);
+        setFieldOfSearch(newFieldOfSearch);
     }
 
 }

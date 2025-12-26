@@ -1,6 +1,7 @@
 package Model;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class ApplyFor
 {
@@ -10,6 +11,9 @@ public class ApplyFor
     private ApplicationStage stage;
     private String source;
     private String notes;
+
+    private static final DateTimeFormatter DT_NO_SEC =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     public ApplyFor(JobPosition position, UserProfile user, String source, String notes) {
         setPosition(position);
@@ -96,19 +100,12 @@ public class ApplyFor
     // toString
     @Override
     public String toString() {
-        return "Application: " +
-                user.getEmail() + " -> " +
-                position.getPositionID() + " (" + position.getTitle() + ")" +
-                " | Stage: " + stage + " | Applied: " + dateApplied +
-                " | Source: " + source +
-                (notes == null || notes.isEmpty() ? "" : " | Notes: " + notes);
+        String applied = (dateApplied == null) ? "N/A" : dateApplied.format(DT_NO_SEC);
+        return "Position num: " + position.getPositionID() + " | " + position.getTitle() + " | " +
+                " | Applied: " + applied + " | Stage: " + stage + " | Source: " + source;
     }
 
     // Methods
-    public String getSummary() {
-        return position.getTitle() + " | " + stage + " | " + dateApplied;
-    }
-
     public void updateStage(ApplicationStage newStage) {
         setStage(newStage);
     }

@@ -139,8 +139,9 @@ public class Event
         this.notified = false;
     }
 
-    public void reSchedule(LocalDateTime newDateTime) {
+    public void reSchedule(LocalDateTime newDateTime, int newDuration) {
         setDateTime(newDateTime);
+        setDuration(newDuration);
         resetNotification();
     }
 
