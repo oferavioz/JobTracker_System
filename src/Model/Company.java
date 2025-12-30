@@ -28,8 +28,28 @@ public class Company
         if (companyName == null || companyName.trim().isEmpty()) {
             throw new IllegalArgumentException("Company name cannot be null or empty.");
         }
-        String name = companyName.trim().replaceAll("\\s+", " ");
-        this.companyName = name;
+        if (!companyName.matches("^[A-Za-z0-9 .,&\\-']+$")) {
+            throw new IllegalArgumentException("Company name contains invalid characters.");
+        }
+        String s = companyName.trim().replaceAll("\\s+", " ").toLowerCase();
+        StringBuilder out = new StringBuilder(s.length());
+        boolean capNext = true;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == ' ') {
+                out.append(c);
+                capNext = true;
+                continue;
+            }
+            if (capNext && Character.isLetter(c)) {
+                out.append(Character.toUpperCase(c));
+                capNext = false;
+            } else {
+                out.append(c);
+                capNext = false;
+            }
+        }
+        this.companyName = out.toString();
     }
 
     public void setIndustry(String industry) {
@@ -53,28 +73,7 @@ public class Company
     }
 
     public void setBranches(ArrayList<String> branches) {
-        this.branches = new ArrayList<>();
-        if (branches == null) {
-            return;
-        }
-        for (String b : branches) {
-            if (b == null) {
-                continue;
-            }
-            String loc = b.trim().replaceAll("\\s+", " ");
-            if (loc.isEmpty()) continue;
-            //check for duplicates
-            boolean exists = false;
-            for (String existing : this.branches) {
-                if (existing.equalsIgnoreCase(loc)) {
-                    exists = true;
-                    break;
-                }
-            }
-            if (!exists) {
-                this.branches.add(loc);
-            }
-        }
+        this.branches = (branches == null) ? new ArrayList<>() : new ArrayList<>(branches);
     }
 
     // Getters
@@ -101,19 +100,11 @@ public class Company
 
     // Methods
     public boolean hasBranch(String location) {
-        if (location == null) {
-            return false;
-        }
-        //to clean up input
+        if (location == null || branches == null) return false;
         String target = location.trim().replaceAll("\\s+", " ");
-        if (target.isEmpty()) {
-            return false;
-        }
-        if (branches == null) {
-            return false;
-        }
+        if (target.isEmpty()) return false;
         for (String b : branches) {
-            if (b.equalsIgnoreCase(target)) return true;
+            if (b != null && b.equalsIgnoreCase(target)) return true;
         }
         return false;
     }

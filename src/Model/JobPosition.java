@@ -2,7 +2,7 @@ package Model;
 
 public class JobPosition
 {
-    private String positionID;
+    private String positionID; //given by the company
     private String title;
     private String field;
     private String location;
@@ -117,10 +117,6 @@ public class JobPosition
     }
 
     // Methods
-    public String getShortSummary() {
-        return positionID + " - " + title + " (" + location + ") [" + status + "]";
-    }
-
     public void updateStatus() {
         if (status != null && status.equalsIgnoreCase("Active")) {
             setStatus("Not Active");

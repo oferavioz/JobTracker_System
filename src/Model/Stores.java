@@ -10,22 +10,12 @@ public class Stores
     private boolean primary;
     private String note;
 
-    public Stores(UserProfile user, Document document, String note)
-    {
+    public Stores(UserProfile user, Document document, String note) {
         setUser(user);
         setDocument(document);
         setPrimary(false);
         setNote(note);
         setStoredAt(LocalDateTime.now());
-    }
-
-    public Stores(UserProfile user, Document document, boolean primary, String note, LocalDateTime storedAt)
-    {
-        setUser(user);
-        setDocument(document);
-        setPrimary(primary);
-        setNote(note);
-        setStoredAt(storedAt);
     }
 
     // Setters

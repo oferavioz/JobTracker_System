@@ -1,6 +1,7 @@
 package Model;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class Contact
 {
@@ -15,23 +16,8 @@ public class Contact
     private String lastContactMethod;
     private String lastContactSubject;
 
-    public Contact(UserProfile user, Company company, String contactName,
-                   String role, String contactEmail, String contactPhone) {
-        setUser(user);
-        setCompany(company);
-        setContactName(contactName);
-        setRole(role);
-        setContactEmail(contactEmail);
-        setContactPhone(contactPhone);
-        setContactDate(LocalDateTime.now());
-
-        this.lastContactMethod = "";
-        this.lastContactSubject = "";
-    }
-
     public Contact(UserProfile user, Company company, String contactName, String role,
-                   String contactEmail, String contactPhone, LocalDateTime contactDate)
-    {
+                   String contactEmail, String contactPhone, LocalDateTime contactDate) {
         setUser(user);
         setCompany(company);
         setContactName(contactName);
@@ -63,7 +49,18 @@ public class Contact
         if (contactName == null || contactName.trim().isEmpty()) {
             throw new IllegalArgumentException("Contact name cannot be null or empty.");
         }
-        this.contactName = contactName.trim().replaceAll("\\s+", " ");
+        if (!contactName.matches("^[A-Za-z ]+$")) {
+            throw new IllegalArgumentException("Contact name can only contain alphabetic characters and spaces.");
+        }
+        String s = contactName.trim().replaceAll("\\s+", " ").toLowerCase();
+        StringBuilder out = new StringBuilder(s.length());
+        out.append(Character.toUpperCase(s.charAt(0)));
+
+        for (int i = 1; i < s.length(); i++) {
+            char c = s.charAt(i);
+            out.append(s.charAt(i - 1) == ' ' ? Character.toUpperCase(c) : c);
+        }
+        this.contactName = out.toString();
     }
 
     public void setRole(String role) {
@@ -71,7 +68,25 @@ public class Contact
             this.role = "";
             return;
         }
-        this.role = role.trim().replaceAll("\\s+", " ");
+        String s = role.trim().replaceAll("\\s+", " ").toLowerCase();
+        StringBuilder out = new StringBuilder(s.length());
+        boolean capNext = true;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == ' ') {
+                out.append(c);
+                capNext = true;
+                continue;
+            }
+            if (capNext && Character.isLetter(c)) {
+                out.append(Character.toUpperCase(c));
+                capNext = false;
+            } else {
+                out.append(c);
+                capNext = false;
+            }
+        }
+        this.role = out.toString();
     }
 
     public void setContactEmail(String contactEmail) {
@@ -199,12 +214,13 @@ public class Contact
     }
 
     public String getLastContactInfo() {
-        String info = "Last contact: " + contactDate;
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        String info = "Last contact: " + contactDate.format(fmt);
         if (lastContactMethod != null && !lastContactMethod.isEmpty()) {
-            info += " (" + lastContactMethod + ")";
+            info += "\nVia: " + lastContactMethod;
         }
         if (lastContactSubject != null && !lastContactSubject.isEmpty()) {
-            info += " - " + lastContactSubject;
+            info += "\nSubject: " + lastContactSubject;
         }
         return info;
     }

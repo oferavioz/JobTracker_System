@@ -124,8 +124,4 @@ public class AddEventThread extends Thread {
         }
         return null;
     }
-
-    public boolean isSuccess() { return success; }
-    public String getErrorMessage() { return errorMessage; }
-    public NotifyAbout getNotification() { return notification; }
 }

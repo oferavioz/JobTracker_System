@@ -1,23 +1,16 @@
 package Model;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 
 public class Publishes
 {
     private Company company;
     private JobPosition position;
-    private LocalDateTime publishDate;
+    private LocalDate publishDate;
     private String postingChannel;
 
-    public Publishes(Company company, JobPosition position, String postingChannel) {
-        setCompany(company);
-        setPosition(position);
-        setPublishDate(LocalDateTime.now());
-        setPostingChannel(postingChannel);
-    }
-
-    public Publishes(Company company, JobPosition position, LocalDateTime publishDate, String postingChannel)
-    {
+    public Publishes(Company company, JobPosition position, LocalDate publishDate, String postingChannel) {
         setCompany(company);
         setPosition(position);
         setPublishDate(publishDate);
@@ -39,8 +32,8 @@ public class Publishes
         this.position = position;
     }
 
-    public void setPublishDate(LocalDateTime publishDate) {
-        this.publishDate = (publishDate == null) ? LocalDateTime.now() : publishDate;
+    public void setPublishDate(LocalDate publishDate) {
+        this.publishDate = (publishDate == null) ? LocalDate.now() : publishDate;
     }
 
     public void setPostingChannel(String postingChannel) {
@@ -58,7 +51,7 @@ public class Publishes
     public JobPosition getPosition() {
         return position;
     }
-    public LocalDateTime getPublishDate() {
+    public LocalDate getPublishDate() {
         return publishDate;
     }
     public String getPostingChannel() {
@@ -75,12 +68,12 @@ public class Publishes
 
     // Methods
     public Long daysSincePublish() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDate now = LocalDate.now();
         if (publishDate == null) {
             return 0L;
         }
-        long days = java.time.Duration.between(publishDate, now).toDays();
-        return (days < 0) ? 0L : days;
+        long days = ChronoUnit.DAYS.between(publishDate, LocalDate.now());
+        return Math.max(0, days);
     }
 
     public void updatePostingChannel(String newChannel) {

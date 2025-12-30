@@ -9,6 +9,10 @@ public class NotifyAbout
     private Event event;
     private LocalDateTime createdAt;
     private boolean seen;
+    //For notifications without specific event :
+    private String title;
+    private String message;
+
 
     private static final DateTimeFormatter NOTIF_FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -16,6 +20,17 @@ public class NotifyAbout
     public NotifyAbout(UserProfile user, Event event) {
         setUser(user);
         setEvent(event);
+        this.title = null;
+        this.message = null;
+        setCreatedAt(LocalDateTime.now());
+        setSeen(false);
+    }
+
+    public NotifyAbout(UserProfile user, String title, String message) {
+        setUser(user);
+        this.event = null;
+        this.title = (title == null) ? "" : title.trim();
+        this.message = (message == null) ? "" : message.trim();
         setCreatedAt(LocalDateTime.now());
         setSeen(false);
     }
@@ -56,19 +71,37 @@ public class NotifyAbout
     public boolean isSeen() {
         return seen;
     }
+    public String getTitle() {
+        if (isSystem()) return title;
+        return (event == null || event.getTitle() == null) ? "" : event.getTitle();
+    }
+    public String getMessage() {
+        if (isSystem()) return message;
+        return (event == null || event.getNotes() == null) ? "" : event.getNotes();
+    }
 
     // toString
     @Override
     public String toString() {
+        String seenText = seen ? "Yes" : "No";
+        if (isSystem()) {
+            String t = (title == null || title.isBlank()) ? "System" : title.trim();
+            String shortMsg = (message == null) ? "" : message.trim();
+            if (shortMsg.length() > 55) shortMsg = shortMsg.substring(0, 55) + "...";
+            return "System | " + t + " | " + shortMsg + " | Seen: " + seenText;
+        }
         String id = (event == null) ? "-" : String.valueOf(event.getEventID());
-        String type = (event == null || event.getType() == null || event.getType().isBlank()) ? "Other" : event.getType().trim();
         String title = (event == null || event.getTitle() == null || event.getTitle().isBlank()) ? "(no title)" : event.getTitle().trim();
         String when = (event == null || event.getDateTime() == null) ? "N/A" : event.getDateTime().format(NOTIF_FMT);
-        String seenText = seen ? "Yes" : "No";
-        return "Event #" + id + " | " + title + " | On: " + when + " | Seen: " + seenText;
+        seenText = seen ? "Yes" : "No";
+        return "Event #" + id + " | IN 24 HOURS | " + title + " | On: " + when + " | Seen: " + seenText;
     }
 
     // Methods
+    public boolean isSystem() {
+        return (event == null);
+    }
+
     public void markAsSeen() {
         this.seen = true;
     }

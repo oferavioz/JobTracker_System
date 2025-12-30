@@ -2,6 +2,7 @@ package System;
 
 import Model.*;
 import Model.Event;
+import Threads.AddApplicationTask;
 import Threads.AddEventThread;
 
 import javax.swing.*;
@@ -73,8 +74,9 @@ public class JobTrackerGUI extends JFrame {
     private JTextField appSourceTF;
     private JComboBox<String> appFieldCB;
     private JComboBox<String> appEmploymentCB;
-
     private JTextField cNameTF, cRoleTF, cEmailTF, cPhoneTF;
+    private JTextField appPublishDateTF;
+    private JLabel pdPublishDateVal;
 
     // ===== EVENTS =====
     private int calMonth;
@@ -109,14 +111,23 @@ public class JobTrackerGUI extends JFrame {
     // ===== PROCESS DETAILS =====
     private ApplyFor selectedProcessApp;
     private JLabel pdPositionIdVal, pdTitleVal, pdCompanyVal, pdStageVal, pdSourceVal, pdAppliedAtVal;
+    private JLabel pdLocationVal;
     private JTextArea pdNotesTA;
     private JComboBox<ApplicationStage> pdStageCB;
     private JTextField pdSourceTF;
     private JTextArea pdAddNoteTA;
     private JLabel pdContactVal;
+    private JLabel pdLastContactVal;
+    private JButton pdViewLastContactBtn;
+    private JButton pdLogContactBtn;
+    private JLabel pdStatusVal;
+    private JButton pdToggleStatusBtn;
 
     // ===== STATS =====
-    private final JLabel statsLabel = new JLabel("No data");
+    private final JLabel statsHeader = new JLabel("No data");
+    private final JTextPane statsDetailsPane = new JTextPane();
+    private final JTextArea statsStagesTA = new JTextArea(10, 24);
+    private final WeekBarChartPanel statsWeekChart = new WeekBarChartPanel();
 
     public JobTrackerGUI(JobTracker tracker) {
         super("JobTracker");
@@ -264,7 +275,6 @@ public class JobTrackerGUI extends JFrame {
     // =========================
     // LOGIN / REGISTER
     // =========================
-
     private JPanel buildLoginCard() {
         JPanel root = new JPanel(new BorderLayout());
         root.setBorder(new EmptyBorder(22, 22, 22, 22));
@@ -356,13 +366,7 @@ public class JobTrackerGUI extends JFrame {
 
     private void doRegister() {
         try {
-            tracker.registerUser(
-                    regFullNameTF.getText(),
-                    regEmailTF.getText(),
-                    new String(regPassPF.getPassword()),
-                    regPhoneTF.getText(),
-                    regFieldTF.getText()
-            );
+            tracker.registerUser(regFullNameTF.getText(), regEmailTF.getText(), new String(regPassPF.getPassword()), regPhoneTF.getText(), regFieldTF.getText());
             log("User created.");
             JOptionPane.showMessageDialog(this, "User created. Now login.", "OK", JOptionPane.INFORMATION_MESSAGE);
             navStack.clear();
@@ -376,7 +380,6 @@ public class JobTrackerGUI extends JFrame {
     // =========================
     // MAIN MENU
     // =========================
-
     private JPanel buildMenuCard() {
         JPanel root = new JPanel(new BorderLayout());
         root.add(header("Main Menu", false, true), BorderLayout.NORTH);
@@ -431,7 +434,6 @@ public class JobTrackerGUI extends JFrame {
     // =========================
     // PROFILE
     // =========================
-
     private JPanel buildProfileCard() {
         JPanel root = new JPanel(new BorderLayout());
         root.add(header("Personal Area", true, true), BorderLayout.NORTH);
@@ -522,8 +524,11 @@ public class JobTrackerGUI extends JFrame {
     }
 
     private void openEditProfileDialog() {
-        try { requireLogin(); } catch (Exception ex) { return; }
-
+        try {
+            requireLogin();
+        } catch (Exception ex) {
+            return;
+        }
         JTextField fullName = new JTextField(safe(activeUser.getFullName()), 22);
         JTextField phone = new JTextField(safe(activeUser.getPhone()), 22);
         JTextField field = new JTextField(safe(activeUser.getFieldOfSearch()), 22);
@@ -581,11 +586,9 @@ public class JobTrackerGUI extends JFrame {
     // =========================
     // DOCUMENTS
     // =========================
-
     private JPanel buildDocsCard() {
         JPanel root = new JPanel(new BorderLayout());
         root.add(header("My Documents", true, true), BorderLayout.NORTH);
-
         filesList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         linksList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
@@ -728,7 +731,6 @@ public class JobTrackerGUI extends JFrame {
         ta.setEditable(false);
         ta.setLineWrap(true);
         ta.setWrapStyleWord(true);
-
         Runnable refreshDetails = () -> {
             Stores updated = tracker.getStoredDocument(activeUser, s.getDocument().getDocName());
             if (updated == null) updated = s;
@@ -747,9 +749,7 @@ public class JobTrackerGUI extends JFrame {
             ta.setText(details);
             ta.setCaretPosition(0);
         };
-
         refreshDetails.run();
-
         JButton openBtn = new JButton("Open");
         openBtn.addActionListener(e -> openStoredDocument(tracker.getStoredDocument(activeUser, s.getDocument().getDocName())));
 
@@ -787,7 +787,6 @@ public class JobTrackerGUI extends JFrame {
     private void openEditStoreDialog(Stores s) {
         try { requireLogin(); } catch (Exception ex) { return; }
         if (s == null || s.getDocument() == null) return;
-
         Document d = s.getDocument();
 
         JTextField nameTF = new JTextField(safe(d.getDocName()), 22);
@@ -815,14 +814,8 @@ public class JobTrackerGUI extends JFrame {
         int res = JOptionPane.showConfirmDialog(this, p, "Edit Document", JOptionPane.OK_CANCEL_OPTION);
         if (res != JOptionPane.OK_OPTION) return;
         try {
-            tracker.updateStoredDocumentDetails(
-                    activeUser,
-                    d.getDocName(),
-                    nameTF.getText(),
-                    targetTF.getText(),
-                    noteTA.getText(),
-                    primaryCB.isSelected()
-            );
+            tracker.updateStoredDocumentDetails(activeUser, d.getDocName(), nameTF.getText(),
+                    targetTF.getText(), noteTA.getText(), primaryCB.isSelected());
             log("Document updated.");
             refreshDocs();
         } catch (Exception ex) {
@@ -864,7 +857,6 @@ public class JobTrackerGUI extends JFrame {
     // =========================
     // ADD APPLICATION
     // =========================
-
     private JPanel buildAddApplicationCard() {
         JPanel root = new JPanel(new BorderLayout());
         root.add(header("Add Application", true, true), BorderLayout.NORTH);
@@ -886,6 +878,7 @@ public class JobTrackerGUI extends JFrame {
         appSourceTF = new JTextField();
         appFieldCB = new JComboBox<>(new String[]{"Software", "Hardware", "Embedded", "Data", "QA", "IT", "Other"});
         appEmploymentCB = new JComboBox<>(new String[]{"Student", "Internship", "Part-time", "Full-time", "Contract", "Other"});
+        appPublishDateTF = new JTextField();
 
         cNameTF = new JTextField();
         cRoleTF = new JTextField();
@@ -895,6 +888,7 @@ public class JobTrackerGUI extends JFrame {
         addRow(form, gc, "Position ID: ", appPositionIdTF);
         addRow(form, gc, "Title: ", appTitleTF);
         addRow(form, gc, "Field: ", appFieldCB);
+        addRow(form, gc, "Publish Date yyyy-MM-dd (optional): ", appPublishDateTF);
         addRow(form, gc, "Company Name: ", appCompanyNameTF);
         addRow(form, gc, "Industry: ", appIndustryTF);
         addRow(form, gc, "Company's website(URL): ", appWebsiteTF);
@@ -918,20 +912,70 @@ public class JobTrackerGUI extends JFrame {
     }
 
     private void submitApplication() {
-        try { requireLogin(); } catch (Exception ex) { return; }
         try {
-            tracker.addApplicationFromForm(activeUser, appPositionIdTF.getText(), appTitleTF.getText(),
-                    Objects.toString(appFieldCB.getSelectedItem(), "Other"), appLocationTF.getText(),
-                    Objects.toString(appEmploymentCB.getSelectedItem(), "Other"), appDescriptionTA.getText(),
-                    appCompanyNameTF.getText(), appIndustryTF.getText(), appWebsiteTF.getText(), appSourceTF.getText(),
-                    appNotesTA.getText(), cNameTF.getText(), cRoleTF.getText(), cEmailTF.getText(), cPhoneTF.getText());
-            log("Application added.");
-            JOptionPane.showMessageDialog(this, "Application added.", "OK", JOptionPane.INFORMATION_MESSAGE);
-            clearAddAppForm();
-            showCard(C_MENU, false);
+            requireLogin();
+        } catch (Exception ex) {
+            return;
+        }
+        String positionId = appPositionIdTF.getText();
+        String title = appTitleTF.getText();
+        String field = Objects.toString(appFieldCB.getSelectedItem(), "Other");
+        String location = appLocationTF.getText();
+        String employmentType = Objects.toString(appEmploymentCB.getSelectedItem(), "Other");
+        String description = appDescriptionTA.getText();
+
+        String companyName = appCompanyNameTF.getText();
+        String industry = appIndustryTF.getText();
+        String website = appWebsiteTF.getText();
+
+        LocalDate publishDate = null;
+        String publishTxt = (appPublishDateTF == null) ? null : appPublishDateTF.getText();
+
+        if (publishTxt != null && !publishTxt.trim().isEmpty()) {
+            try {
+                publishDate = LocalDate.parse(publishTxt.trim(), DateTimeFormatter.ISO_LOCAL_DATE); // yyyy-MM-dd
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this,
+                        "Invalid publish date. Use format yyyy-MM-dd (example: 2025-12-28)",
+                        "Add Application Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+        }
+
+        String source = appSourceTF.getText();
+        String notes = appNotesTA.getText();
+
+        String contactName = cNameTF.getText();
+        String contactRole = cRoleTF.getText();
+        String contactEmail = cEmailTF.getText();
+        String contactPhone = cPhoneTF.getText();
+
+        final JobPosition position;
+        final Company company;
+        try {
+            company = new Company(companyName, industry, website);
+            position = new JobPosition(positionId, title, field, location, employmentType, "Active", description);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage(), "Add Application Error", JOptionPane.ERROR_MESSAGE);
+            return;
         }
+        AddApplicationTask task = new AddApplicationTask(tracker, activeUser, position, company, publishDate, source, notes, contactName,
+                contactRole, contactEmail, contactPhone, LocalDateTime.now());
+        Thread t = new Thread(() -> {
+            task.run(); //background work
+            SwingUtilities.invokeLater(() -> {
+                if (task.isSuccess()) {
+                    log("Application added.");
+                    JOptionPane.showMessageDialog(this, "Application added.", "OK", JOptionPane.INFORMATION_MESSAGE);
+                    clearAddAppForm();
+                    refreshProcesses();
+                    showCard(C_MENU, false);
+                } else {
+                    JOptionPane.showMessageDialog(this, task.getErrorMessage(), "Add Application Error", JOptionPane.ERROR_MESSAGE);
+                }
+            });
+        }, "AddApplicationTask-Thread");
+        t.start();
     }
 
     private void clearAddAppForm() {
@@ -946,6 +990,7 @@ public class JobTrackerGUI extends JFrame {
         appDescriptionTA.setText("");
         appNotesTA.setText("");
         appSourceTF.setText("");
+        appPublishDateTF.setText("");
 
         cNameTF.setText("");
         cRoleTF.setText("");
@@ -956,7 +1001,6 @@ public class JobTrackerGUI extends JFrame {
     // =========================
     // EVENTS (Calendar)
     // =========================
-
     private JPanel buildEventsCard() {
         JPanel root = new JPanel(new BorderLayout());
         root.add(header("Events", true, true), BorderLayout.NORTH);
@@ -981,7 +1025,6 @@ public class JobTrackerGUI extends JFrame {
         calWrap.setBorder(new EmptyBorder(10, 10, 10, 10));
         calWrap.add(calTop, BorderLayout.NORTH);
         calWrap.add(calGrid, BorderLayout.CENTER);
-
         root.add(calWrap, BorderLayout.CENTER);
 
         JButton addBtn = new JButton("Add Event");
@@ -1025,7 +1068,6 @@ public class JobTrackerGUI extends JFrame {
             calGrid.removeAll();
             YearMonth ym = YearMonth.of(calYear, calMonth);
             LocalDate firstDay = ym.atDay(1);
-
             calMonthLabel.setText(firstDay.format(MONTH_TITLE_FMT));
 
             Vector<Event> monthEvents = tracker.listEvents(activeUser, calMonth, calYear);
@@ -1047,7 +1089,6 @@ public class JobTrackerGUI extends JFrame {
                 p.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(210, 210, 210)));
                 calGrid.add(p);
             }
-
             int offset = firstDay.getDayOfWeek().getValue() % 7;
             int daysInMonth = ym.lengthOfMonth();
             int totalCells = 42;
@@ -1063,7 +1104,6 @@ public class JobTrackerGUI extends JFrame {
             }
             calGrid.revalidate();
             calGrid.repaint();
-
             log("Events calendar refreshed: " + calMonth + "/" + calYear);
         } catch (Exception ex) {
             log("Calendar refresh failed: " + ex.getMessage());
@@ -1086,7 +1126,6 @@ public class JobTrackerGUI extends JFrame {
                 String t = ev.getDateTime().toLocalTime().format(TIME_FMT);
                 sb.append(t).append(" | ").append(ev.getType() == null ? "Other" : ev.getType())
                         .append(" | ").append(ev.getTitle() == null ? "(no title)" : ev.getTitle()).append("\n");
-
                 String notes = ev.getNotes();
                 if (notes != null && !notes.isBlank()) {
                     sb.append("   Notes: ").append(notes.trim()).append("\n");
@@ -1199,15 +1238,13 @@ public class JobTrackerGUI extends JFrame {
         }
         AddEventThread t = new AddEventThread(tracker, activeUser, ev);
         t.start();
-
         new Thread(() -> {
             try {
                 t.awaitAddResult();
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
                 SwingUtilities.invokeLater(() ->
-                        JOptionPane.showMessageDialog(this, "Thread interrupted.", "Event Error", JOptionPane.ERROR_MESSAGE)
-                );
+                        JOptionPane.showMessageDialog(this, "Thread interrupted.", "Event Error", JOptionPane.ERROR_MESSAGE));
                 return;
             }
             SwingUtilities.invokeLater(() -> {
@@ -1380,8 +1417,7 @@ public class JobTrackerGUI extends JFrame {
     private DefaultListCellRenderer eventCellRenderer() {
         return new DefaultListCellRenderer() {
             @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value, int index,
-                                                          boolean isSelected, boolean cellHasFocus) {
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
                 super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
                 if (value instanceof Event ev && ev.getDateTime() != null) {
                     String t = ev.getDateTime().toLocalTime().format(TIME_FMT);
@@ -1395,7 +1431,6 @@ public class JobTrackerGUI extends JFrame {
     // =========================
     // NOTIFICATIONS
     // =========================
-
     private JPanel buildNotifsCard() {
         JPanel root = new JPanel(new BorderLayout());
         root.add(header("My Notifications", true, true), BorderLayout.NORTH);
@@ -1469,7 +1504,6 @@ public class JobTrackerGUI extends JFrame {
     private JPanel buildProcessesCard() {
         JPanel root = new JPanel(new BorderLayout());
         root.add(header("My Processes", true, true), BorderLayout.NORTH);
-
         appsList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         appsList.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override public void mouseClicked(java.awt.event.MouseEvent e) {
@@ -1479,28 +1513,34 @@ public class JobTrackerGUI extends JFrame {
                 }
             }
         });
+
         appsList.setCellRenderer(new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(JList<?> list, Object value, int index,
                                                           boolean isSelected, boolean cellHasFocus) {
                 Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
                 if (value instanceof ApplyFor app) {
-                    Color bg = new Color(210, 255, 210);
-                    if (tracker.isApplicationOverdue(activeUser, app)) bg = new Color(255, 245, 180);
-                    if (tracker.isFinalStage(app.getStage())) bg = new Color(255, 210, 210);
+                    Color bg = new Color(210, 255, 210); //default green
+                    String st = (app.getPosition() == null) ? "" : String.valueOf(app.getPosition().getStatus());
+                    boolean posNotActive = st.equalsIgnoreCase("Not Active");
+                    if (tracker.isFinalStage(app.getStage())) {
+                        bg = new Color(255, 210, 210); //final stage red
+                    } else if (posNotActive) {
+                        bg = new Color(230, 230, 230); //not active grey
+                    } else if (tracker.isApplicationOverdue(activeUser, app)) {
+                        bg = new Color(255, 245, 180); //overdue yellow
+                    }
                     if (isSelected) c.setBackground(bg.darker());
                     else c.setBackground(bg);
                 }
                 return c;
             }
         });
-
         JButton details = new JButton("Open Details");
         details.addActionListener(e -> {
             ApplyFor app = appsList.getSelectedValue();
             if (app != null) openProcessDetails(app);
         });
-
         JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         bottom.add(details);
 
@@ -1538,28 +1578,103 @@ public class JobTrackerGUI extends JFrame {
 
         pdPositionIdVal = new JLabel("-");
         pdTitleVal = new JLabel("-");
+        pdLocationVal = new JLabel("-");
         pdCompanyVal = new JLabel("-");
         pdStageVal = new JLabel("-");
         pdSourceVal = new JLabel("-");
         pdAppliedAtVal = new JLabel("-");
         pdContactVal = new JLabel("-");
+        pdLastContactVal = new JLabel("-"); // NEW
+        pdStatusVal = new JLabel("-");
+        pdPublishDateVal = new JLabel("-");
+
 
         addRow(grid, gc, "Position ID:", pdPositionIdVal);
+        addRow(grid, gc, "Publish date:", pdPublishDateVal);
         addRow(grid, gc, "Title:", pdTitleVal);
-        addRow(grid, gc, "Company:", pdCompanyVal);
+        addRow(grid, gc, "Location:", pdLocationVal);
+
+        JPanel companyRow = new JPanel(new BorderLayout(8, 0));
+        companyRow.setOpaque(false);
+
+        JButton companyViewBtn = new JButton("View company's details");
+        companyViewBtn.addActionListener(e -> openCompanyDetailsForSelectedProcess());
+
+        companyRow.add(pdCompanyVal, BorderLayout.CENTER);
+        companyRow.add(companyViewBtn, BorderLayout.EAST);
+        addRow(grid, gc, "Company:", companyRow);
+
         addRow(grid, gc, "Stage:", pdStageVal);
         addRow(grid, gc, "Source:", pdSourceVal);
         addRow(grid, gc, "Applied at:", pdAppliedAtVal);
+
+        //Contact + Last Contact
         addRow(grid, gc, "Contact:", pdContactVal);
+        addRow(grid, gc, "Last Contact:", pdLastContactVal);
 
+        //Buttons below Contact + Last Contact
+        pdViewLastContactBtn = new JButton("View Last Contact");
+        pdLogContactBtn = new JButton("Log Communication");
+        pdViewLastContactBtn.addActionListener(e -> showLastContactDialogForSelectedProcess());
+        pdLogContactBtn.addActionListener(e -> openLogCommunicationDialogForSelectedProcess());
 
+        JPanel commBtnsRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        commBtnsRow.setOpaque(false);
+        commBtnsRow.add(pdViewLastContactBtn);
+        commBtnsRow.add(pdLogContactBtn);
+
+        addRow(grid, gc, "", commBtnsRow);
+        //Position Status + Toggle Button
+        pdToggleStatusBtn = new JButton("Toggle Status");
+        pdToggleStatusBtn.addActionListener(e -> {
+            try { requireLogin(); } catch (Exception ex) { return; }
+            if (selectedProcessApp == null || selectedProcessApp.getPosition() == null) return;
+
+            String pid = selectedProcessApp.getPosition().getPositionID();
+            boolean ok = tracker.togglePositionStatus(pid);
+            if (!ok) {
+                JOptionPane.showMessageDialog(this, "Failed to update status.", "Status", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            refreshProcessDetails();
+            refreshProcesses();
+            refreshStats();
+        });
+        JPanel statusRow = new JPanel(new BorderLayout(8, 0));
+        statusRow.setOpaque(false);
+        statusRow.add(pdStatusVal, BorderLayout.CENTER);
+        statusRow.add(pdToggleStatusBtn, BorderLayout.EAST);
+
+        addRow(grid, gc, "Position Status:", statusRow);
+
+        //Notes
         pdNotesTA = new JTextArea(7, 28);
         pdNotesTA.setEditable(false);
         pdNotesTA.setLineWrap(true);
         pdNotesTA.setWrapStyleWord(true);
-        addRow(grid, gc, "Notes:", new JScrollPane(pdNotesTA));
 
-        //Actions panel (single Save button)
+        JScrollPane notesScroll = new JScrollPane(pdNotesTA);
+        notesScroll.setPreferredSize(new Dimension(420, 160));
+
+        gc.gridwidth = 1;
+        gc.gridx = 0;
+        gc.weightx = 0;
+        gc.weighty = 0;
+        gc.fill = GridBagConstraints.HORIZONTAL;
+        grid.add(new JLabel("Notes:"), gc);
+
+        gc.gridx = 1;
+        gc.weightx = 1.0;
+        gc.weighty = 1.0;
+        gc.fill = GridBagConstraints.BOTH;
+        grid.add(notesScroll, gc);
+
+        gc.gridy++;
+
+        gc.weighty = 0;
+        gc.fill = GridBagConstraints.HORIZONTAL;
+
+        //actions panel
         JPanel actions = new JPanel(new GridBagLayout());
         actions.setBorder(new EmptyBorder(10, 0, 0, 0));
         GridBagConstraints ac = gb();
@@ -1584,33 +1699,22 @@ public class JobTrackerGUI extends JFrame {
         saveBtn.addActionListener(e -> {
             try { requireLogin(); } catch (Exception ex) { return; }
             if (selectedProcessApp == null || selectedProcessApp.getPosition() == null) return;
+
             String pid = selectedProcessApp.getPosition().getPositionID();
-
-            // Stage: update only if changed
             ApplicationStage newStage = (ApplicationStage) pdStageCB.getSelectedItem();
-            if (newStage != null && newStage != selectedProcessApp.getStage()) {
-                tracker.updateApplicationStage(activeUser, pid, newStage);
-            }
+            String newSource = pdSourceTF.getText();
+            String note = pdAddNoteTA.getText();
 
-            // Source: update only if changed and not empty
-            String newSource = (pdSourceTF.getText() == null) ? "" : pdSourceTF.getText().trim();
-            String oldSource = (selectedProcessApp.getSource() == null) ? "" : selectedProcessApp.getSource().trim();
-            if (!newSource.isEmpty() && !newSource.equalsIgnoreCase(oldSource)) {
-                tracker.updateApplicationSource(activeUser, pid, newSource);
-            }
-
-            // Append note: only if typed something
-            String note = (pdAddNoteTA.getText() == null) ? "" : pdAddNoteTA.getText().trim();
-            if (!note.isEmpty()) {
-                tracker.addApplicationNote(activeUser, pid, note);
+            try {
+                tracker.updateProcessFromDetailsForm(activeUser, pid, newStage, newSource, note);
                 pdAddNoteTA.setText("");
+                refreshProcesses();
+                refreshProcessDetails();
+                showCard(C_PROCESSES, false);
+            } catch (Exception ex2) {
+                JOptionPane.showMessageDialog(this, ex2.getMessage(), "Save Error", JOptionPane.ERROR_MESSAGE);
             }
-
-            refreshProcesses();
-            refreshProcessDetails();
-            showCard(C_PROCESSES, false);
         });
-
         addRow(actions, ac, "", saveBtn);
 
         JButton withdrawBtn = new JButton("Withdraw");
@@ -1621,7 +1725,6 @@ public class JobTrackerGUI extends JFrame {
             refreshProcesses();
             refreshProcessDetails();
         });
-
         JButton removeBtn = new JButton("Remove Process");
         removeBtn.addActionListener(e -> {
             try { requireLogin(); } catch (Exception ex) { return; }
@@ -1633,7 +1736,6 @@ public class JobTrackerGUI extends JFrame {
             refreshProcesses();
             showCard(C_PROCESSES, false);
         });
-
         JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         btnRow.add(withdrawBtn);
         btnRow.add(removeBtn);
@@ -1647,6 +1749,95 @@ public class JobTrackerGUI extends JFrame {
         return root;
     }
 
+    private void showLastContactDialogForSelectedProcess() {
+        try {
+            requireLogin();
+        } catch (Exception ex) {
+            return;
+        }
+        if (selectedProcessApp == null || selectedProcessApp.getPosition() == null) return;
+
+        String pid = selectedProcessApp.getPosition().getPositionID();
+        String info = tracker.getLastContactInfoForPosition(activeUser, pid);
+        long days = tracker.daysSinceLastContactForPosition(activeUser, pid);
+
+        //If there is no communication - Not available
+        String msg;
+        if (info == null || info.trim().isEmpty() || days < 0) {
+            msg = "Not available";
+        } else {
+            msg = safe(info) + "\n\nDays since last contact: " + days;
+        }
+
+        JTextArea ta = new JTextArea(msg, 10, 44);
+        ta.setEditable(false);
+        ta.setLineWrap(true);
+        ta.setWrapStyleWord(true);
+        JOptionPane.showMessageDialog(this, new JScrollPane(ta), "Last Contact", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void openLogCommunicationDialogForSelectedProcess() {
+        try { requireLogin(); } catch (Exception ex) { return; }
+        if (selectedProcessApp == null || selectedProcessApp.getPosition() == null) return;
+
+        String pid = selectedProcessApp.getPosition().getPositionID();
+        //ensure a contact exists for the position
+        Contact c = tracker.getContactForPosition(activeUser, pid);
+        if (c == null) {
+            int ok = JOptionPane.showConfirmDialog(
+                    this,
+                    "No contact is linked to this position.\nYou must add a contact first.\n\nOpen Add/Edit Contact now?",
+                    "No Contact",
+                    JOptionPane.OK_CANCEL_OPTION
+            );
+            if (ok != JOptionPane.OK_OPTION) return;
+            openAddOrEditContactForSelectedProcess();
+            //re-check after adding
+            c = tracker.getContactForPosition(activeUser, pid);
+            if (c == null) return;
+        }
+        JComboBox<String> methodCB = new JComboBox<>(new String[]{"Email", "Phone", "LinkedIn", "WhatsApp", "Meeting", "Other"
+        });
+        JTextField subjectTF = new JTextField(26);
+
+        JPanel p = new JPanel(new GridBagLayout());
+        GridBagConstraints gc = gb();
+        gc.gridy = 0;
+
+        addRow(p, gc, "Method:", methodCB);
+        addRow(p, gc, "Subject / Summary:", subjectTF);
+        int res = JOptionPane.showConfirmDialog(this, p, "Log Communication", JOptionPane.OK_CANCEL_OPTION);
+        if (res != JOptionPane.OK_OPTION) return;
+        String method = Objects.toString(methodCB.getSelectedItem(), "Other");
+        String subject = subjectTF.getText();
+        try {
+            tracker.logLastContactForPosition(activeUser, pid, method, subject);
+            log("Communication logged for position: " + pid);
+
+            refreshProcessDetails();
+            refreshProcesses();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Log Communication Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void openCompanyDetailsForSelectedProcess() {
+        try { requireLogin(); } catch (Exception ex) {
+            return;
+        }
+        if (selectedProcessApp == null || selectedProcessApp.getPosition() == null) return;
+        String pid = selectedProcessApp.getPosition().getPositionID();
+        String txt = tracker.buildCompanyDetailsTextForPosition(pid);
+
+        JTextArea ta = new JTextArea(12, 44);
+        ta.setEditable(false);
+        ta.setLineWrap(true);
+        ta.setWrapStyleWord(true);
+        ta.setText(txt);
+        ta.setCaretPosition(0);
+        JOptionPane.showMessageDialog(this, new JScrollPane(ta), "Company Details", JOptionPane.INFORMATION_MESSAGE);
+    }
+
     private void refreshProcessDetails() {
         try {
             requireLogin();
@@ -1655,20 +1846,51 @@ public class JobTrackerGUI extends JFrame {
             JobPosition p = selectedProcessApp.getPosition();
             String pid = p.getPositionID();
 
+            String status = safe(p.getStatus());
+            pdStatusVal.setText(status.isBlank() ? "-" : status);
+            boolean isActive = !status.equalsIgnoreCase("Not Active");
+            pdToggleStatusBtn.setText(isActive ? "Mark Not Active" : "Mark Active");
+
+            LocalDate pub = tracker.getPublishDateForPosition(pid);
+            if (pub == null) {
+                pdPublishDateVal.setText("-");
+            } else {
+                pdPublishDateVal.setText(pub.toString() + tracker.publishAgeInParentheses(pid));
+            }
+
             Company c = tracker.getCompanyForPosition(pid);
             Contact contact = tracker.getContactForPosition(activeUser, pid);
+
             if (contact == null) {
                 pdContactVal.setText("No contact for this position.");
             } else {
-                String line = safe(contact.getContactName());
-                if (!safe(contact.getRole()).isBlank()) line += " (" + safe(contact.getRole()) + ")";
-                if (!safe(contact.getContactEmail()).isBlank()) line += " | " + safe(contact.getContactEmail());
-                if (!safe(contact.getContactPhone()).isBlank()) line += " | " + safe(contact.getContactPhone());
+                String line = contact.getContactCard();
                 pdContactVal.setText(line);
+            }
+            //Last Contact
+            String info = tracker.getLastContactInfoForPosition(activeUser, pid);
+            long days = tracker.daysSinceLastContactForPosition(activeUser, pid);
+            //If there is no communication - Not available
+            if (info == null || info.trim().isEmpty() || days < 0) {
+                pdLastContactVal.setText("Not available");
+                if (pdViewLastContactBtn != null) pdViewLastContactBtn.setEnabled(false);
+            } else {
+                String raw = info.trim();
+                String displayDate = raw;
+
+                int idx = raw.toLowerCase().indexOf("last contact:");
+                if (idx >= 0) displayDate = raw.substring(idx + "last contact:".length()).trim();
+
+                int nlIdx = displayDate.indexOf('\n');
+                if (nlIdx >= 0) displayDate = displayDate.substring(0, nlIdx).trim();
+
+                pdLastContactVal.setText(displayDate);
+                if (pdViewLastContactBtn != null) pdViewLastContactBtn.setEnabled(true);
             }
 
             pdPositionIdVal.setText(safe(pid));
             pdTitleVal.setText(safe(p.getTitle()));
+            pdLocationVal.setText(safe(p.getLocation()));
             pdCompanyVal.setText(c == null ? "-" : safe(c.getCompanyName()));
             pdStageVal.setText(selectedProcessApp.getStage() == null ? "-" : selectedProcessApp.getStage().name());
             pdSourceVal.setText(safe(selectedProcessApp.getSource()));
@@ -1686,14 +1908,8 @@ public class JobTrackerGUI extends JFrame {
     private void openAddOrEditContactForSelectedProcess() {
         try { requireLogin(); } catch (Exception ex) { return; }
         if (selectedProcessApp == null || selectedProcessApp.getPosition() == null) return;
+
         String pid = selectedProcessApp.getPosition().getPositionID();
-        Company company = tracker.getCompanyForPosition(pid);
-        if (company == null) {
-            JOptionPane.showMessageDialog(this,
-                    "Cannot edit contact because this position has no company linked.",
-                    "Contact", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
         Contact existing = tracker.getContactForPosition(activeUser, pid);
 
         JTextField nameTF  = new JTextField(existing == null ? "" : safe(existing.getContactName()), 22);
@@ -1705,45 +1921,90 @@ public class JobTrackerGUI extends JFrame {
         GridBagConstraints gc = gb();
         gc.gridy = 0;
 
-        addRow(p, gc, "Name (required):", nameTF);
+        addRow(p, gc, "Name:", nameTF);
         addRow(p, gc, "Role:", roleTF);
         addRow(p, gc, "Email:", emailTF);
         addRow(p, gc, "Phone:", phoneTF);
 
-        int res = JOptionPane.showConfirmDialog(this, p, (existing == null ? "Add Contact" : "Edit Contact"), JOptionPane.OK_CANCEL_OPTION);
+        int res = JOptionPane.showConfirmDialog(this, p,
+                (existing == null ? "Add Contact" : "Edit Contact"), JOptionPane.OK_CANCEL_OPTION);
         if (res != JOptionPane.OK_OPTION) return;
 
         try {
-            String name = nameTF.getText();
-            tracker.addContact(activeUser, company, name,
-                    roleTF.getText(), emailTF.getText(), phoneTF.getText(),
-                    LocalDateTime.now());
-            //bind this contact to this position
-            tracker.setContactForPosition(activeUser, pid, name);
+            tracker.addOrEditContactForPosition(activeUser, pid,
+                    nameTF.getText(), roleTF.getText(), emailTF.getText(), phoneTF.getText());
             refreshProcessDetails();
             refreshProcesses();
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this,
-                    "Contact update failed: " + ex.getMessage(),
-                    "Contact Error",
-                    JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Contact update failed: " + ex.getMessage(), "Contact Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     // =========================
     // STATS
     // =========================
-
     private JPanel buildStatsCard() {
         JPanel root = new JPanel(new BorderLayout());
         root.add(header("Statistics", true, true), BorderLayout.NORTH);
+        JPanel center = new JPanel(new BorderLayout(10, 10));
+        center.setBorder(new EmptyBorder(20, 20, 20, 20));
 
-        JPanel center = new JPanel(new BorderLayout());
-        center.setBorder(new EmptyBorder(30, 30, 30, 30));
+        statsHeader.setFont(statsHeader.getFont().deriveFont(Font.BOLD, 18f));
+        center.add(statsHeader, BorderLayout.NORTH);
 
-        statsLabel.setFont(statsLabel.getFont().deriveFont(Font.PLAIN, 18f));
-        center.add(statsLabel, BorderLayout.NORTH);
+        statsDetailsPane.setEditable(false);
+        statsDetailsPane.setContentType("text/html");
+        statsDetailsPane.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
 
+        statsStagesTA.setEditable(false);
+        statsStagesTA.setLineWrap(true);
+        statsStagesTA.setWrapStyleWord(true);
+        //Fonts for section titles
+        Font base = UIManager.getFont("Label.font");
+        Font sectionTitleFont = (base == null) ? new Font("SansSerif", Font.BOLD, 16) : base.deriveFont(Font.BOLD, base.getSize2D() + 3f);
+        //Left part : Full details
+        JPanel left = new JPanel(new BorderLayout(8, 8));
+        JLabel detailsTitle = new JLabel("Details");
+        detailsTitle.setFont(sectionTitleFont);
+        left.add(detailsTitle, BorderLayout.NORTH);
+        left.add(new JScrollPane(statsDetailsPane), BorderLayout.CENTER);
+
+        //Right part : Chart + Stage breakdown
+        JPanel right = new JPanel();
+        right.setLayout(new BoxLayout(right, BoxLayout.Y_AXIS));
+
+        //Chart title
+        JLabel chartTitle = new JLabel("Applications per week", SwingConstants.CENTER);
+        chartTitle.setFont(sectionTitleFont);
+
+        JPanel chartTitleWrap = new JPanel(new BorderLayout());
+        chartTitleWrap.setOpaque(false);
+        chartTitleWrap.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        chartTitleWrap.setAlignmentX(Component.LEFT_ALIGNMENT);
+        chartTitleWrap.add(chartTitle, BorderLayout.CENTER);
+
+        statsWeekChart.setPreferredSize(new Dimension(420, 220));
+        statsWeekChart.setMinimumSize(new Dimension(420, 220));
+        statsWeekChart.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel stagesTitle = new JLabel("Stage breakdown");
+        stagesTitle.setFont(sectionTitleFont);
+        stagesTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JScrollPane stagesScroll = new JScrollPane(statsStagesTA);
+        stagesScroll.setAlignmentX(Component.LEFT_ALIGNMENT);
+        stagesScroll.setPreferredSize(new Dimension(420, 220));
+
+        right.add(chartTitleWrap);
+        right.add(Box.createVerticalStrut(8));
+        right.add(statsWeekChart);
+        right.add(Box.createVerticalStrut(14));
+        right.add(stagesTitle);
+        right.add(Box.createVerticalStrut(8));
+        right.add(stagesScroll);
+        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, right);
+        split.setResizeWeight(0.58);
+        center.add(split, BorderLayout.CENTER);
         root.add(center, BorderLayout.CENTER);
         return root;
     }
@@ -1751,18 +2012,51 @@ public class JobTrackerGUI extends JFrame {
     private void refreshStats() {
         try {
             requireLogin();
-            String s = tracker.buildUserStatistics(activeUser);
-            statsLabel.setText("<html>" + safe(s).replace("\n", "<br>") + "</html>");
+            statsHeader.setText("Statistics for " + safe(activeUser.getFullName()));
+            //Full details
+            String full = tracker.buildUserStatistics(activeUser);
+            int idxStage = full.indexOf("Stage breakdown:");
+            int idxWeeks = full.indexOf("Applications per week");
+
+            int cut = full.length();
+            if (idxStage >= 0) cut = Math.min(cut, idxStage);
+            if (idxWeeks >= 0) cut = Math.min(cut, idxWeeks);
+
+            String leftPart = full.substring(0, cut).trim();
+            statsDetailsPane.setText(toBoldDetailsHtml(leftPart));
+            statsDetailsPane.setCaretPosition(0);
+            //Chart (4 weeks)
+            LinkedHashMap<String, Integer> perWeek = tracker.applicationsPerWeek(activeUser, 4);
+            statsWeekChart.setData(perWeek);
+            //Stage breakdown
+            String stage = tracker.formatStageBreakdown(activeUser);
+            stage = (stage == null) ? "" : stage.trim();
+            statsStagesTA.setText(stage.isBlank() ? "(no data)" : stage);
+            statsStagesTA.setCaretPosition(0);
             log("Statistics refreshed.");
         } catch (Exception ex) {
             log("Stats failed: " + ex.getMessage());
         }
     }
 
+    private String toBoldDetailsHtml(String text) {
+        if (text == null) text = "";
+        String s = text.trim();
+        if (s.isBlank()) return "<html><body>No statistics available.</body></html>";
+        s = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+        //bold specific keys
+        String[] keys = {"Applications:", "Events:", "Most applied company:", "Avg days to first stage change:"};
+        for (String k : keys) {
+            s = s.replace(k, "<b>" + k + "</b>");
+        }
+        //new lines
+        s = s.replace("\n", "<br>");
+        return "<html><body style='font-family:SansSerif; font-size:12px;'>" + s + "</body></html>";
+    }
+
     // =========================
     // Small UI helpers
     // =========================
-
     private void makeBigField(JComponent c) {
         Font f = c.getFont();
         c.setFont(f.deriveFont(Font.PLAIN, 18f));
@@ -1818,5 +2112,76 @@ public class JobTrackerGUI extends JFrame {
 
     private static String safe(String s) {
         return (s == null) ? "" : s;
+    }
+
+
+    // ========================= for stats chart =========================
+    private static class WeekBarChartPanel extends JPanel {
+        private java.util.List<String> labels = java.util.List.of();
+        private java.util.List<Integer> values = java.util.List.of();
+
+        public void setData(LinkedHashMap<String, Integer> data) {
+            if (data == null || data.isEmpty()) {
+                labels = java.util.List.of();
+                values = java.util.List.of();
+            } else {
+                labels = new ArrayList<>(data.keySet());
+                values = new ArrayList<>(data.values());
+            }
+            repaint();
+        }
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            if (labels.isEmpty()) {
+                g.drawString("No data", 10, 20);
+                return;
+            }
+            int w = getWidth();
+            int h = getHeight();
+
+            int padding = 30;
+            int baseY = h - padding;
+            int leftX = padding;
+            int rightX = w - 10;
+
+            int max = 1;
+            for (int v : values) {
+                max = Math.max(max, v);
+            }
+            //axis
+            g.drawLine(leftX, baseY, rightX, baseY);
+            g.drawLine(leftX, baseY, leftX, 10);
+
+            int n = values.size();
+            int usableW = rightX - leftX - 10;
+            int slot = Math.max(1, usableW / n);
+            int barW = Math.max(6, (int)(slot * 0.65));
+
+            for (int i = 0; i < n; i++) {
+                int v = values.get(i);
+                int barH = (int) ((baseY - 20) * (v / (double) max));
+                int x = leftX + 5 + i * slot;
+                int y = baseY - barH;
+                g.fillRect(x, y, barW, barH);
+                //value
+                String vs = String.valueOf(v);
+                FontMetrics fm = g.getFontMetrics();
+                if (barH >= 18) {
+                    int tx = x + (barW - fm.stringWidth(vs)) / 2;
+                    int ty = y + (barH / 2) + (fm.getAscent() / 2) - 2;
+
+                    Color old = g.getColor();
+                    g.setColor(Color.WHITE);
+                    g.drawString(vs, tx, ty);
+                    g.setColor(old);
+                } else {
+                    g.drawString(vs, x, Math.max(12, y - 4));
+                }
+                // label
+                String lab = labels.get(i);
+                g.drawString(lab, x, baseY + 14);
+            }
+        }
     }
 }

@@ -3,6 +3,7 @@ package System;
 import Model.*;
 
 import java.io.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -40,7 +41,7 @@ public class JobTracker {
 
     //trim for strings
     private String norm(String s) {
-        return (s == null) ? null : s.trim();
+        return (s == null) ? null : s.trim().replaceAll("\\s+", " ");
     }
 
     private String posKey(UserProfile user, String positionID) {
@@ -135,7 +136,7 @@ public class JobTracker {
     }
 
     //avoids duplicates (company and position), updates posting channel if already exists
-    private Publishes upsertPublish(Company company, JobPosition position, String postingChannel) {
+    private Publishes upsertPublish(Company company, JobPosition position, LocalDate publishDate, String postingChannel) {
         if (company == null || position == null) {
             throw new IllegalArgumentException("Company and JobPosition cannot be null.");
         }
@@ -143,20 +144,29 @@ public class JobTracker {
         if (channel == null || channel.isEmpty()) {
             throw new IllegalArgumentException("Posting channel cannot be null/empty.");
         }
+
         Company storedCompany = addCompany(company);
         JobPosition storedPosition = addPosition(position);
+
+        String loc = storedPosition.getLocation();
+        if (loc != null && !loc.trim().isEmpty()) addBranch(storedCompany, loc);
+
         for (Publishes pub : publishedJobs) {
             if (pub == null || pub.getCompany() == null || pub.getPosition() == null) continue;
-
             boolean sameCompany = pub.getCompany().getCompanyName().equalsIgnoreCase(storedCompany.getCompanyName());
             boolean samePosition = pub.getPosition().getPositionID().equalsIgnoreCase(storedPosition.getPositionID());
             if (sameCompany && samePosition) {
                 pub.updatePostingChannel(channel);
+                //set publish date if missing
+                if (publishDate != null) {
+                    pub.setPublishDate(publishDate);
+                }
                 return pub;
             }
         }
 
-        Publishes created = new Publishes(storedCompany, storedPosition, channel);
+        Publishes created = new Publishes(storedCompany, storedPosition, publishDate, channel);
+
         publishedJobs.add(created);
         return created;
     }
@@ -229,65 +239,125 @@ public class JobTracker {
         stored.updateProfile(newFullName, newPhone, newFieldOfSearch);
     }
 
-    public UserProfile getUserByEmail(String email) {
-        return findUserByEmail(email);
-    }
-
     // =========================================================
     // ==================== Company Methods ====================
     // =========================================================
 
     public Company addCompany(Company company) {
-        if (company == null) throw new IllegalArgumentException("Company cannot be null.");
+        if (company == null) {
+            throw new IllegalArgumentException("Company cannot be null.");
+        }
         Company existing = findCompanyByName(company.getCompanyName());
-        if (existing != null) return existing;
+        if (existing != null) {
+            //merge details if missing
+            if ((existing.getIndustry() == null || existing.getIndustry().isBlank()) &&
+                    company.getIndustry() != null && !company.getIndustry().isBlank()) {
+                existing.setIndustry(company.getIndustry());
+            }
+            if ((existing.getWebsiteURL() == null || existing.getWebsiteURL().isBlank()) &&
+                    company.getWebsiteURL() != null && !company.getWebsiteURL().isBlank()) {
+                existing.setWebsiteURL(company.getWebsiteURL());
+            }
+            //merge branches if incoming has any
+            if (company.getBranches() != null) {
+                for (String b : company.getBranches()) {
+                    addBranch(existing, b);
+                }
+            }
+            return existing;
+        }
         companies.add(company);
         return company;
     }
 
-    public Company getCompanyByName(String companyName) {
-        return findCompanyByName(companyName);
-    }
-
-    public Vector<Company> listCompanies() {
-        return new Vector<>(companies);
-    }
-
-    public Vector<Company> searchCompanies(String query) {
-        Vector<Company> out = new Vector<>();
-        String q = norm(query);
-        if (q == null || q.isEmpty()) return out;
-
-        String key = q.toLowerCase();
-        for (Company c : companies) {
-            if (c == null) continue;
-            String name = c.getCompanyName();
-            String ind = c.getIndustry();
-            if ((name != null && name.toLowerCase().contains(key)) ||
-                    (ind != null && ind.toLowerCase().contains(key))) {
-                out.add(c);
-            }
-        }
-        return out;
-    }
-
     public void addBranch(Company company, String location) {
-        if (company == null) throw new IllegalArgumentException("Company cannot be null.");
-        String loc = norm(location);
-        if (loc == null || loc.isEmpty()) throw new IllegalArgumentException("Location cannot be null or empty.");
-
+        if (company == null) {
+            throw new IllegalArgumentException("Company cannot be null.");
+        }
+        String loc = normalizeBranchLocation(location);
+        if (loc == null || loc.isEmpty()) {
+            throw new IllegalArgumentException("Location cannot be null or empty.");
+        }
+        if (company.hasBranch(loc)) return;
         ArrayList<String> updated = new ArrayList<>();
         if (company.getBranches() != null) updated.addAll(company.getBranches());
         updated.add(loc);
         company.setBranches(updated);
     }
 
-    public boolean updateCompanyDetails(String companyName, String industry, String websiteUrl) {
-        Company c = findCompanyByName(companyName);
-        if (c == null) return false;
-        if (industry != null) c.setIndustry(industry);
-        if (websiteUrl != null) c.setWebsiteURL(websiteUrl);
-        return true;
+    public List<String> getAllBranchesForCompany(Company company) {
+        LinkedHashMap<String, String> uniq = new LinkedHashMap<>();
+        if (company == null) return new ArrayList<>();
+        //stored branches
+        if (company.getBranches() != null) {
+            for (String b : company.getBranches()) {
+                putBranchNormalized(uniq, b);
+            }
+        }
+        //branches from published jobs
+        String cname = (company.getCompanyName() == null) ? null : company.getCompanyName().trim();
+        if (cname != null && !cname.isEmpty()) {
+            for (Publishes pub : publishedJobs) {
+                if (pub == null || pub.getCompany() == null || pub.getPosition() == null) continue;
+                String pc = pub.getCompany().getCompanyName();
+                if (pc == null || !pc.equalsIgnoreCase(cname)) continue;
+                putBranchNormalized(uniq, pub.getPosition().getLocation());
+            }
+        }
+        return new ArrayList<>(uniq.values());
+    }
+
+    private void putBranchNormalized(LinkedHashMap<String, String> uniq, String raw) {
+        String pretty = normalizeBranchLocation(raw);
+        if (pretty == null) return;
+        String key = pretty.toLowerCase(Locale.ROOT);
+        uniq.putIfAbsent(key, pretty);
+    }
+
+    private String normalizeBranchLocation(String location) {
+        String loc = norm(location);
+        if (loc == null) return null;
+        loc = loc.replaceAll("\\s+", " ").trim();
+        if (loc.isEmpty()) return null;
+
+        String s = loc.toLowerCase(Locale.ROOT);
+        StringBuilder out = new StringBuilder(s.length());
+        boolean capNext = true;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == ' ' || c == '-' || c == ',' || c == '/' || c == '.') {
+                out.append(c);
+                capNext = true;
+                continue;
+            }
+            if (capNext && Character.isLetter(c)) {
+                out.append(Character.toUpperCase(c));
+                capNext = false;
+            } else {
+                out.append(c);
+                capNext = false;
+            }
+        }
+        return out.toString();
+    }
+
+    public String buildCompanyDetailsTextForPosition(String positionID) {
+        String pid = norm(positionID);
+        if (pid == null || pid.isEmpty()) {
+            return "No position selected.";
+        }
+        Company c = getCompanyForPosition(pid);
+        if (c == null) {
+            return "No company linked to this position.";
+        }
+        String industry = (c.getIndustry() == null || c.getIndustry().isBlank()) ? "N/A" : c.getIndustry().trim();
+        String website  = (c.getWebsiteURL() == null || c.getWebsiteURL().isBlank()) ? "N/A" : c.getWebsiteURL().trim();
+        List<String> branches = getAllBranchesForCompany(c);
+        String brText = branches.isEmpty() ? "(no branches)" : String.join(", ", branches);
+        String channel = getPostingChannelForPosition(pid);
+        String chText = (channel == null || channel.isBlank()) ? "N/A" : channel.trim();
+        return "Company: " + c.getCompanyName() + "\nIndustry: " + industry + "\nWebsite: " + website
+                + "\nBranches: " + brText + "\nPosting channels: " + chText;
     }
 
     //Save + Load Companies to/from file
@@ -333,10 +403,6 @@ public class JobTracker {
         return position;
     }
 
-    public JobPosition getPositionByID(String positionID) {
-        return findPositionByID(positionID);
-    }
-
     public boolean togglePositionStatus(String positionID) {
         JobPosition p = findPositionByID(positionID);
         if (p == null) return false;
@@ -344,89 +410,86 @@ public class JobTracker {
         return true;
     }
 
-    public boolean updatePositionDetails(String positionID,
-                                         String title, String field, String location,
-                                         String employmentType, String status, String description) {
-        JobPosition p = findPositionByID(positionID);
-        if (p == null) return false;
-
-        if (title != null) p.setTitle(title);
-        if (field != null) p.setField(field);
-        if (location != null) p.setLocation(location);
-        if (employmentType != null) p.setEmploymentType(employmentType);
-        if (status != null) p.setStatus(status);
-        if (description != null) p.setDescription(description);
-        return true;
+    public LocalDate getPublishDateForPosition(String positionID) {
+        Publishes p = findPublishByPositionId(positionID);
+        return (p == null) ? null : p.getPublishDate();
     }
 
-    //links Company <-> Position
-    public Publishes publishJob(Company company, JobPosition position, String postingChannel) {
-        return upsertPublish(company, position, postingChannel);
+    public String publishAgeInParentheses(String positionID) {
+        Publishes pub = findPublishByPositionId(positionID);
+        if (pub == null) return "";
+        long days = pub.daysSincePublish();
+        if (days <= 0) return " (today)";
+        if (days == 1) return " (1 day ago)";
+        return " (" + days + " days ago)";
     }
 
-    public Publishes getPublishByPositionId(String positionID) {
-        return findPublishByPositionId(positionID);
-    }
-
-    public Vector<JobPosition> listPositionsForCompany(Company company) {
-        Vector<JobPosition> out = new Vector<>();
-        if (company == null || company.getCompanyName() == null) return out;
-
-        for (Publishes p : publishedJobs) {
-            if (p == null || p.getCompany() == null || p.getPosition() == null) continue;
-            if (p.getCompany().getCompanyName().equalsIgnoreCase(company.getCompanyName())) {
-                out.add(p.getPosition());
+    public void generateOldPublishNotifications(UserProfile user, long thresholdDays) {
+        if (user == null) return;
+        Vector<ApplyFor> apps = listApplications(user);
+        if (apps == null) return;
+        for (ApplyFor app : apps) {
+            if (app == null || app.getPosition() == null) continue;
+            JobPosition pos = app.getPosition();
+            String pid = norm(pos.getPositionID());
+            if (pid == null || pid.isEmpty()) continue;
+            //only if still active
+            String st = (pos.getStatus() == null) ? "" : pos.getStatus().trim();
+            if (st.equalsIgnoreCase("Not Active")) continue;
+            Publishes pub = findPublishByPositionId(pid);
+            if (pub == null || pub.getPublishDate() == null) continue;
+            long days = pub.daysSincePublish();
+            if (days < thresholdDays) continue;
+            if (!hasOldPublishNotification(user, pid)) {
+                addOldPublishNotification(user, pid, days, pub.getPublishDate());
             }
         }
-        return out;
     }
 
-    public Vector<Publishes> listPublishedJobsForCompany(Company company) {
-        Vector<Publishes> out = new Vector<>();
-        if (company == null || company.getCompanyName() == null) return out;
-
-        for (Publishes p : publishedJobs) {
-            if (p == null || p.getCompany() == null) continue;
-            if (p.getCompany().getCompanyName().equalsIgnoreCase(company.getCompanyName())) out.add(p);
+    private boolean hasOldPublishNotification(UserProfile user, String pid) {
+        for (NotifyAbout n : notifications) {
+            if (n == null || n.getUser() == null) continue;
+            if (!sameUser(n.getUser(), user)) continue;
+            if (n.isSystem()) {
+                String t = n.getTitle();
+                String m = n.getMessage();
+                if ((t != null && t.contains(pid)) || (m != null && m.contains(pid))) return true;
+            }
         }
-        return out;
+        return false;
+    }
+
+    private void addOldPublishNotification(UserProfile user, String pid, long days, LocalDate publishDate) {
+        String title = "Old publish - Check if position still Active";
+        String msg = "Position " + pid + ", published on " + publishDate + " (" + days + " days ago)";
+        notifications.add(new NotifyAbout(user, title, msg));
     }
 
     // =========================================================
     // ==================== Applications Methods ================
     // =========================================================
 
-    public ApplyFor addApplication(UserProfile user, JobPosition position, Company company, String source, String notes) {
+    public ApplyFor addApplication(UserProfile user, JobPosition position, Company company, LocalDate publishDate, String source, String notes) {
         if (user == null) throw new IllegalArgumentException("User cannot be null.");
         if (position == null) throw new IllegalArgumentException("Position cannot be null.");
         if (company == null) throw new IllegalArgumentException("Company cannot be null.");
-
-        //store + link publish (company<->position)
-        Publishes pub = upsertPublish(company, position, source);
+        //store or merge company (by name)
+        Company storedCompany = addCompany(company);
+        //location = branch
+        String loc = (position.getLocation() == null) ? null : position.getLocation();
+        if (loc != null && !loc.trim().isEmpty()) {
+            addBranch(storedCompany, loc);
+        }
+        //link publish and create application
+        Publishes pub = upsertPublish(storedCompany, position, publishDate, source);
         JobPosition storedPosition = pub.getPosition();
-        //prevent duplicates per user+position
+
         ApplyFor existing = findApplication(user, storedPosition.getPositionID());
         if (existing != null) return existing;
+
         ApplyFor created = new ApplyFor(storedPosition, user, source, notes);
         applications.add(created);
         return created;
-    }
-
-    //for gui form submission
-    public ApplyFor addApplicationFromForm(UserProfile user, String positionId, String title, String field, String location,
-            String employmentType, String description, String companyName, String industry, String website,
-            String source, String notes, String contactName, String contactRole, String contactEmail, String contactPhone) {
-        if (user == null) throw new IllegalArgumentException("User cannot be null.");
-        Company company = new Company(companyName, industry, website);
-        JobPosition position = new JobPosition(positionId, title, field, location, employmentType, "Active", description);
-
-        ApplyFor app = addApplication(user, position, company, source, notes);
-        String cName = norm(contactName);
-        if (cName != null && !cName.isEmpty()) {
-            addContact(user, company, cName, contactRole, contactEmail, contactPhone, LocalDateTime.now());
-            setContactForPosition(user, positionId, cName);
-        }
-        return app;
     }
 
     public Vector<ApplyFor> listApplications(UserProfile user) {
@@ -448,10 +511,6 @@ public class JobTracker {
         return out;
     }
 
-    public ApplyFor getApplication(UserProfile user, String positionID) {
-        return findApplication(user, positionID);
-    }
-
     public boolean updateApplicationStage(UserProfile user, String positionID, ApplicationStage newStage) {
         ApplyFor app = findApplication(user, positionID);
         if (app == null) return false;
@@ -459,27 +518,11 @@ public class JobTracker {
         return true;
     }
 
-    //appends to the notes field
-    public boolean addApplicationNote(UserProfile user, String positionID, String note) {
-        ApplyFor app = findApplication(user, positionID);
-        if (app == null) return false;
-        app.addNote(note);
-        return true;
-    }
-
-    //replace the entire notes field
-    public boolean setApplicationNotes(UserProfile user, String positionID, String notes) {
-        ApplyFor app = findApplication(user, positionID);
-        if (app == null) return false;
-        app.setNotes(notes);
-        return true;
-    }
-
-    public boolean updateApplicationSource(UserProfile user, String positionID, String source) {
-        ApplyFor app = findApplication(user, positionID);
-        if (app == null) return false;
-        app.setSource(source);
-        return true;
+    public boolean isApplicationOverdue(UserProfile user, ApplyFor app) {
+        if (user == null || app == null || app.getUserProfile() == null) return false;
+        if (!sameUser(app.getUserProfile(), user)) return false;
+        if (isFinalStage(app.getStage())) return false;
+        return app.timeSinceApplied() >= OVERDUE_DAYS;
     }
 
     public boolean withdrawApplication(UserProfile user, String positionID) {
@@ -495,41 +538,6 @@ public class JobTracker {
         return removed;
     }
 
-    public Vector<ApplyFor> listApplicationsForCompany(UserProfile user, Company company) {
-        Vector<ApplyFor> out = new Vector<>();
-        if (user == null || company == null) return out;
-
-        Vector<JobPosition> companyPositions = listPositionsForCompany(company);
-        for (ApplyFor app : applications) {
-            if (app == null || app.getUserProfile() == null || app.getPosition() == null) continue;
-            if (!sameUser(app.getUserProfile(), user)) continue;
-
-            for (JobPosition p : companyPositions) {
-                if (p != null && app.getPosition().getPositionID().equalsIgnoreCase(p.getPositionID())) {
-                    out.add(app);
-                    break;
-                }
-            }
-        }
-        return out;
-    }
-
-    public Vector<ApplyFor> checkOverdueApplications(UserProfile user) {
-        Vector<ApplyFor> out = new Vector<>();
-        if (user == null) return out;
-
-        for (ApplyFor app : applications) {
-            if (app == null || app.getUserProfile() == null) continue;
-            if (!sameUser(app.getUserProfile(), user)) continue;
-
-            if (isFinalStage(app.getStage())) continue;
-
-            long days = app.timeSinceApplied();
-            if (days >= OVERDUE_DAYS) out.add(app);
-        }
-        return out;
-    }
-
     public Company getCompanyForPosition(String positionID) {
         return findCompanyForPosition(positionID);
     }
@@ -538,7 +546,6 @@ public class JobTracker {
         Publishes p = findPublishByPositionId(positionID);
         return (p == null) ? null : p.getPostingChannel();
     }
-
 
     // =========================================================
     // ==================== Contacts Methods ====================
@@ -560,79 +567,9 @@ public class JobTracker {
             if (contactDate != null) existing.updateContactDate(contactDate);
             return existing;
         }
-
         Contact created = new Contact(user, storedCompany, cName, role, contactEmail, contactPhone, contactDate);
         contacts.add(created);
         return created;
-    }
-
-    public Vector<Contact> listContacts(UserProfile user) {
-        Vector<Contact> out = new Vector<>();
-        if (user == null) return out;
-
-        for (Contact c : contacts) {
-            if (c != null && c.getUser() != null && sameUser(c.getUser(), user)) out.add(c);
-        }
-        return out;
-    }
-
-    public Vector<Contact> listContactsForCompany(UserProfile user, Company company) {
-        Vector<Contact> out = new Vector<>();
-        if (user == null || company == null || company.getCompanyName() == null) return out;
-
-        for (Contact c : contacts) {
-            if (c == null || c.getUser() == null || c.getCompany() == null) continue;
-            if (!sameUser(c.getUser(), user)) continue;
-            if (c.getCompany().getCompanyName().equalsIgnoreCase(company.getCompanyName())) out.add(c);
-        }
-        return out;
-    }
-
-    public boolean updateContactInfo(UserProfile user, String companyName, String contactName,
-                                     String role, String email, String phone) {
-        Contact c = findContact(user, companyName, contactName);
-        if (c == null) return false;
-        c.updateContactInfo(role, email, phone);
-        return true;
-    }
-
-    public boolean logContact(UserProfile user, String companyName, String contactName, String method, String subject) {
-        Contact c = findContact(user, companyName, contactName);
-        if (c == null) return false;
-        c.logContact(method, subject);
-        return true;
-    }
-
-    public boolean removeContact(UserProfile user, String companyName, String contactName) {
-        Contact c = findContact(user, companyName, contactName);
-        if (c == null) return false;
-        boolean removed = contacts.remove(c);
-        if (!removed) return false;
-        // clear mapping
-        String uEmail = (user != null && user.getEmail() != null) ? user.getEmail().trim().toLowerCase() : null;
-        if (uEmail == null) return true;
-
-        String targetCompany = norm(companyName);
-        String targetContact = norm(contactName);
-        if (targetCompany == null || targetContact == null) return true;
-        for (Publishes p : publishedJobs) {
-            if (p == null || p.getCompany() == null || p.getPosition() == null) continue;
-            String cName = p.getCompany().getCompanyName();
-            String pid = p.getPosition().getPositionID();
-            if (cName == null || pid == null) continue;
-            if (cName.equalsIgnoreCase(targetCompany)) {
-                String key = uEmail + "|" + pid.trim().toLowerCase();
-                String mapped = positionContact.get(key);
-                if (mapped != null && mapped.equalsIgnoreCase(targetContact)) {
-                    positionContact.remove(key);
-                }
-            }
-        }
-        return true;
-    }
-
-    public Contact getContact(UserProfile user, String companyName, String contactName) {
-        return findContact(user, companyName, contactName);
     }
 
     //one contact per position (per user)
@@ -652,6 +589,25 @@ public class JobTracker {
         return true;
     }
 
+    public Contact addOrEditContactForPosition(UserProfile user, String positionID, String contactName, String role, String contactEmail, String contactPhone) {
+        if (user == null) throw new IllegalArgumentException("User cannot be null.");
+        String pid = norm(positionID);
+        if (pid == null || pid.isEmpty()) {
+            throw new IllegalArgumentException("Position ID cannot be empty.");
+        }
+        Company company = getCompanyForPosition(pid);
+        if (company == null) {
+            throw new IllegalArgumentException("Cannot edit contact: this position has no company linked.");
+        }
+        String name = norm(contactName);
+        if (name == null || name.isEmpty()) {
+            throw new IllegalArgumentException("Contact name cannot be empty.");
+        }
+        Contact c = addContact(user, company, name, role, contactEmail, contactPhone, LocalDateTime.now());
+        setContactForPosition(user, pid, c.getContactName());
+        return c;
+    }
+
     public boolean clearContactForPosition(UserProfile user, String positionID) {
         String key = posKey(user, positionID);
         if (key == null) return false;
@@ -668,8 +624,53 @@ public class JobTracker {
         if (comp == null || comp.getCompanyName() == null) return null;
         String name = positionContact.get(key);
         if (name == null) return null;
-
         return findContact(user, comp.getCompanyName(), name);
+    }
+
+    public synchronized Contact logLastContactForPosition(UserProfile user, String positionID, String method, String subject) {
+        if (user == null) {
+            throw new IllegalArgumentException("User cannot be null.");
+        }
+        String pid = norm(positionID);
+        if (pid == null || pid.isEmpty()) {
+            throw new IllegalArgumentException("Position ID cannot be empty.");
+        }
+        Contact c = getContactForPosition(user, pid);
+        if (c == null) {
+            throw new IllegalArgumentException("No contact is linked to this position.");
+        }
+        c.logContact(method, subject); // updates method+subject and sets date
+        return c;
+    }
+
+    public String getLastContactInfoForPosition(UserProfile user, String positionID) {
+        if (user == null) {
+            return "No user.";
+        }
+        String pid = norm(positionID);
+        if (pid == null || pid.isEmpty()) {
+            return "No position selected.";
+        }
+        Contact c = getContactForPosition(user, pid);
+        if (c == null) {
+            return "No contact linked to this position.";
+        }
+        return c.getLastContactInfo();
+    }
+
+    public long daysSinceLastContactForPosition(UserProfile user, String positionID) {
+        if (user == null) {
+            return -1;
+        }
+        String pid = norm(positionID);
+        if (pid == null || pid.isEmpty()) {
+            return -1;
+        }
+        Contact c = getContactForPosition(user, pid);
+        if (c == null) {
+            return -1;
+        }
+        return c.timeSinceLastContact();
     }
 
     // =========================================================
@@ -946,36 +947,34 @@ public class JobTracker {
         return count;
     }
 
-    // Triggers and returns notifications whose time has come (based on your NotifyAbout.shouldTrigger())
-    public Vector<NotifyAbout> triggerDueNotifications(UserProfile user) {
-        Vector<NotifyAbout> triggered = new Vector<>();
-        if (user == null) return triggered;
-
+    //for gui showing notifications
+    public List<NotifyAbout> getNotificationsToDisplay(UserProfile user) {
+        if (user == null) return List.of();
+        generateOldPublishNotifications(user, 60);
+        ArrayList<NotifyAbout> out = new ArrayList<>();
         for (NotifyAbout n : notifications) {
-            if (n == null) continue;
+            if (n == null || n.getUser() == null) continue;
             if (!sameUser(n.getUser(), user)) continue;
-
-            if (n.shouldTrigger()) {
-                n.markAsTriggered();
-                triggered.add(n);
+            if (n.isSystem()) {
+                out.add(n);
+                continue;
+            }
+            Event e = n.getEvent();
+            boolean triggeredAlready = (e != null && e.isNotified());
+            if (n.shouldTrigger() || (triggeredAlready && !n.isSeen())) {
+                out.add(n);
             }
         }
-        return triggered;
-    }
-
-    // What the GUI should show as a notification "feed"
-    public List<NotifyAbout> getNotificationsToDisplay(UserProfile user) {
-        Vector<NotifyAbout> v = listNotifications(user);
-        ArrayList<NotifyAbout> list = new ArrayList<>();
-
-        for (NotifyAbout n : v) {
-            if (n == null || n.getEvent() == null) continue;
-            if (!n.getEvent().isNotified()) continue;
-            list.add(n);
-        }
-
-        list.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
-        return list;
+        //newest first
+        out.sort((a, b) -> {
+            LocalDateTime ta = (a == null) ? null : a.getCreatedAt();
+            LocalDateTime tb = (b == null) ? null : b.getCreatedAt();
+            if (ta == null && tb == null) return 0;
+            if (ta == null) return 1;
+            if (tb == null) return -1;
+            return tb.compareTo(ta);
+        });
+        return out;
     }
 
     // =========================================================
@@ -984,19 +983,20 @@ public class JobTracker {
 
     public String buildUserStatistics(UserProfile user) {
         if (user == null) return "No user";
-
         int totalApps = 0;
         int activeApps = 0;
+        int unActiveApps = 0;
         int totalEvents = 0;
         int upcomingEvents = 0;
-
         for (ApplyFor a : applications) {
-            if (a != null && a.getUserProfile() != null && sameUser(a.getUserProfile(), user)) {
-                totalApps++;
-                if (!isFinalStage(a.getStage())) activeApps++;
+            if (a == null || a.getUserProfile() == null || !sameUser(a.getUserProfile(), user)) {
+                continue;
             }
+            totalApps++;
+            boolean inactive = isFinalStage(a.getStage()) || (a.getPosition() != null && "Not Active".equalsIgnoreCase(a.getPosition().getStatus()));
+            if (inactive) unActiveApps++;
+            else activeApps++;
         }
-
         LocalDateTime now = LocalDateTime.now();
         for (Event e : events) {
             if (e != null && isUserEvent(user, e)) {
@@ -1004,74 +1004,201 @@ public class JobTracker {
                 if (e.getDateTime() != null && e.getDateTime().isAfter(now)) upcomingEvents++;
             }
         }
+        String topCompany = mostAppliedCompany(user);
+        double avgDays = avgDaysToFirstStageChange(user);
+        return "Applications: " + totalApps + " (Active: " + activeApps +" | Not active: " + unActiveApps + ")" +
+                "\nEvents: " + totalEvents + " (Upcoming: " + upcomingEvents + ")" +
+                "\n\nMost applied company: " + topCompany +
+                "\n\nAvg days to first stage change: " +
+                String.format(java.util.Locale.US, "%.2f", avgDays);
+    }
 
-        return "Statistics for " + user.getEmail() +
-                " | Applications: " + totalApps +
-                " (Active: " + activeApps + ")" +
-                " | Events: " + totalEvents +
-                " (Upcoming: " + upcomingEvents + ")";
+    public String mostAppliedCompany(UserProfile user) {
+        if (user == null) return "N/A";
+
+        Map<String, Integer> counts = new HashMap<>();
+
+        for (ApplyFor app : applications) {
+            if (app == null || app.getUserProfile() == null || app.getPosition() == null) continue;
+            if (!sameUser(app.getUserProfile(), user)) continue;
+
+            String pid = app.getPosition().getPositionID();
+            Company c = getCompanyForPosition(pid);
+            String name = (c == null || c.getCompanyName() == null) ? "Unknown" : c.getCompanyName().trim();
+
+            counts.put(name, counts.getOrDefault(name, 0) + 1);
+        }
+        if (counts.isEmpty()) return "N/A";
+        int max = 0;
+        for (int v : counts.values()) max = Math.max(max, v);
+
+        ArrayList<String> winners = new ArrayList<>();
+        for (var e : counts.entrySet()) {
+            if (e.getValue() == max) winners.add(e.getKey());
+        }
+        //sort alphabetically
+        Collections.sort(winners, String.CASE_INSENSITIVE_ORDER);
+
+        if (winners.size() == 1) {
+            return winners.get(0) + " (" + max + ")";
+        }
+        return String.join(", ", winners) + " (" + max + ")";
+    }
+
+    public double avgDaysToFirstStageChange(UserProfile user) {
+        if (user == null) return 0.0;
+
+        long totalHours = 0;
+        int count = 0;
+
+        for (ApplyFor app : applications) {
+            if (app == null || app.getUserProfile() == null) continue;
+            if (!sameUser(app.getUserProfile(), user)) continue;
+
+            LocalDateTime a = app.getDateApplied();
+            LocalDateTime ch = app.getFirstStageChangeAt();
+            if (a == null || ch == null) continue;
+            long hours = java.time.Duration.between(a, ch).toHours();
+            if (hours < 0) continue;
+            totalHours += hours;
+            count++;
+        }
+        if (count == 0) return 0.0;
+        double avgHours = (double) totalHours / count;
+        return Math.ceil(avgHours / 24.0); //convert to days + round up
+    }
+
+    public LinkedHashMap<String, Integer> applicationsPerWeek(UserProfile user, int weeksBack) {
+        LinkedHashMap<String, Integer> out = new LinkedHashMap<>();
+        if (user == null || weeksBack <= 0) return out;
+        java.time.format.DateTimeFormatter df = java.time.format.DateTimeFormatter.ofPattern("dd/MM");
+        LocalDate today = LocalDate.now();
+
+        //Sunday -> Sunday
+        java.time.DayOfWeek WEEK_START = java.time.DayOfWeek.SUNDAY;
+        LocalDate currentWeekStart = today.with(java.time.temporal.TemporalAdjusters.previousOrSame(WEEK_START));
+        //init last N weeks with 0
+        for (int i = weeksBack - 1; i >= 0; i--) {
+            LocalDate start = currentWeekStart.minusWeeks(i);
+            LocalDate end = start.plusDays(7);
+            String key = start.format(df) + "-" + end.format(df);
+            out.put(key, 0);
+        }
+        for (ApplyFor app : applications) {
+            if (app == null || app.getUserProfile() == null) continue;
+            if (!sameUser(app.getUserProfile(), user)) continue;
+            if (app.getDateApplied() == null) continue;
+            LocalDate d = app.getDateApplied().toLocalDate();
+            LocalDate start = d.with(java.time.temporal.TemporalAdjusters.previousOrSame(WEEK_START));
+            LocalDate end = start.plusDays(7);
+            String key = start.format(df) + "-" + end.format(df);
+            if (out.containsKey(key)) out.put(key, out.get(key) + 1);
+        }
+
+        return out;
+    }
+
+    public EnumMap<ApplicationStage, Integer> stageBreakdown(UserProfile user) {
+        EnumMap<ApplicationStage, Integer> out = new EnumMap<>(ApplicationStage.class);
+        for (ApplicationStage st : ApplicationStage.values()) out.put(st, 0);
+        if (user == null) return out;
+        for (ApplyFor app : applications) {
+            if (app == null || app.getUserProfile() == null) continue;
+            if (!sameUser(app.getUserProfile(), user)) continue;
+            ApplicationStage st = app.getStage();
+            if (st == null) continue;
+            out.put(st, out.getOrDefault(st, 0) + 1);
+        }
+        return out;
+    }
+
+    public String formatStageBreakdown(UserProfile user) {
+        EnumMap<ApplicationStage, Integer> map = stageBreakdown(user);
+        StringBuilder sb = new StringBuilder();
+        boolean any = false;
+        for (ApplicationStage st : ApplicationStage.values()) {
+            int cnt = map.getOrDefault(st, 0);
+            if (cnt > 0) {
+                sb.append(st.name()).append(": ").append(cnt).append("\n");
+                any = true;
+            }
+        }
+        if (!any) sb.append("No applications.\n");
+        return sb.toString();
     }
 
 
-    // ===== Helpers exposed for GUI (business logic stays here) =====
-
+    // ===== Helpers exposed for GUI =====
     public boolean isFinalStage(ApplicationStage stage) {
         return stage == ApplicationStage.REJECTED
                 || stage == ApplicationStage.WITHDRAWN
                 || stage == ApplicationStage.OFFER;
     }
 
-    public boolean isApplicationOverdue(UserProfile user, ApplyFor app) {
-        if (user == null || app == null || app.getPosition() == null) return false;
-        Vector<ApplyFor> overdue = checkOverdueApplications(user);
-        for (ApplyFor a : overdue) if (a == app) return true;
-        return false;
-    }
-
     public Event buildEventFromForm(String type, String title, String dateTimeText, String durationText, String notes) {
         String t = (type == null || type.trim().isEmpty()) ? "Other" : type.trim();
         String ttl = (title == null) ? "" : title.trim();
-
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         LocalDateTime dt = LocalDateTime.parse(dateTimeText.trim(), fmt);
         int dur = Integer.parseInt(durationText.trim());
         return new Event(t, ttl, dt, dur, notes);
     }
 
-    public boolean updateStoredDocumentDetails(UserProfile user,
-                                               String oldName,
-                                               String newName,
-                                               String newTarget,
-                                               String newNote,
-                                               boolean makePrimary) {
-
+    public boolean updateStoredDocumentDetails(UserProfile user, String oldName, String newName, String newTarget, String newNote, boolean makePrimary) {
         Stores s = getStoredDocument(user, oldName);
         if (s == null || s.getDocument() == null) return false;
-
         String nn = (newName == null) ? null : newName.trim();
         String nt = (newTarget == null) ? null : newTarget.trim();
-
-        // rename if changed
+        //rename if changed
         if (nn != null && !nn.isEmpty() && !nn.equalsIgnoreCase(s.getDocument().getDocName())) {
             renameDocument(user, s.getDocument().getDocName(), nn);
         }
-
-        // after rename, re-fetch by latest name
+        //after rename - get current name
         String currentName = (nn != null && !nn.isEmpty()) ? nn : s.getDocument().getDocName();
         Stores updated = getStoredDocument(user, currentName);
         if (updated == null || updated.getDocument() == null) return false;
-
         if (nt != null && !nt.isEmpty()) {
             updateDocumentTarget(user, currentName, nt);
         }
-
         if (newNote != null) {
             updateDocumentNote(user, currentName, newNote);
         }
-
         if (makePrimary) markDocumentAsPrimary(user, currentName);
         else unmarkPrimaryDocument(user);
-
         return true;
     }
-}
+
+    public boolean updateProcessFromDetailsForm(UserProfile user, String positionID, ApplicationStage newStage, String newSource, String noteToAppend) {
+        if (user == null) {
+            throw new IllegalArgumentException("User cannot be null.");
+        }
+        String pid = norm(positionID);
+        if (pid == null || pid.isEmpty()) {
+            throw new IllegalArgumentException("Position ID cannot be empty.");
+        }
+        ApplyFor app = findApplication(user, pid);
+        if (app == null) {
+            throw new IllegalArgumentException("Process not found.");
+        }
+        boolean changed = false;
+        //stage
+        if (newStage != null && newStage != app.getStage()) {
+            app.updateStage(newStage);
+            changed = true;
+        }
+        //source
+        String ns = norm(newSource);
+        String os = norm(app.getSource());
+        if (ns != null && !ns.isEmpty() && (os == null || !ns.equalsIgnoreCase(os))) {
+            app.setSource(ns);
+            changed = true;
+        }
+        //note
+        String n = norm(noteToAppend);
+        if (n != null && !n.isEmpty()) {
+            app.addNote(n);
+            changed = true;
+        }
+        return changed;
+    }
+    }

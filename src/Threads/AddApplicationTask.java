@@ -7,6 +7,7 @@ import Model.JobPosition;
 import Model.UserProfile;
 import System.JobTracker;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public class AddApplicationTask implements Runnable {
@@ -15,37 +16,31 @@ public class AddApplicationTask implements Runnable {
     private final UserProfile user;
     private final JobPosition position;
     private final Company company;
+    private final LocalDate publishDate;
 
-    private final String source;   //where the user applied (LinkedIn, company site, etc.)
+    private final String source;
     private final String notes;
 
-    // optional contact info
     private final String contactName;
     private final String role;
     private final String contactEmail;
     private final String contactPhone;
-    private final LocalDateTime contactDate;
+    private final LocalDateTime contactDate; // last communication
 
     private ApplyFor createdApplication;
     private Contact createdContact;
     private String errorMessage = "";
     private boolean success = false;
 
-    public AddApplicationTask(JobTracker tracker,
-                              UserProfile user,
-                              JobPosition position,
-                              Company company,
-                              String source,
-                              String notes,
-                              String contactName,
-                              String role,
-                              String contactEmail,
-                              String contactPhone,
+    public AddApplicationTask(JobTracker tracker, UserProfile user, JobPosition position, Company company, LocalDate publishDate,
+                              String source, String notes,
+                              String contactName, String role, String contactEmail, String contactPhone,
                               LocalDateTime contactDate) {
         this.tracker = tracker;
         this.user = user;
         this.position = position;
         this.company = company;
+        this.publishDate = publishDate;
         this.source = source;
         this.notes = notes;
 
@@ -59,17 +54,25 @@ public class AddApplicationTask implements Runnable {
     @Override
     public void run() {
         try {
-            synchronized (tracker) {
-                createdApplication = tracker.addApplication(user, position, company, source, notes);
+            //create application (includes company merge + branch + publish)
+            createdApplication = tracker.addApplication(user, position, company, publishDate, source, notes);
 
-                //contact- only if name was provided
-                if (contactName != null && !contactName.trim().isEmpty()) {
-                    createdContact = tracker.addContact(user, company, contactName, role, contactEmail, contactPhone, contactDate);
-                }
+            //optional - create/update contact + link to position
+            if (contactName != null && !contactName.trim().isEmpty()) {
+                String pid = createdApplication.getPosition().getPositionID();
+                Company storedCompany = tracker.getCompanyForPosition(pid);
+
+                //if for any reason company isn't linked, fall back to the passed company
+                if (storedCompany == null) storedCompany = company;
+
+                LocalDateTime last = (contactDate != null) ? contactDate : LocalDateTime.now();
+                createdContact = tracker.addContact(user, storedCompany, contactName, role, contactEmail, contactPhone, last);
+                tracker.setContactForPosition(user, pid, createdContact.getContactName());
             }
+
             success = true;
         } catch (Exception ex) {
-            errorMessage = ex.getMessage();
+            errorMessage = (ex.getMessage() != null) ? ex.getMessage() : ex.toString();
             success = false;
         }
     }

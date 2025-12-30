@@ -11,6 +11,7 @@ public class ApplyFor
     private ApplicationStage stage;
     private String source;
     private String notes;
+    private LocalDateTime firstStageChangeAt; //null until first change from APPLIED
 
     private static final DateTimeFormatter DT_NO_SEC =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -22,6 +23,7 @@ public class ApplyFor
         setStage(ApplicationStage.APPLIED);
         setSource(source);
         setNotes(notes);
+        firstStageChangeAt = null;
     }
 
     // Setters
@@ -97,6 +99,10 @@ public class ApplyFor
         return notes;
     }
 
+    public LocalDateTime getFirstStageChangeAt() {
+        return firstStageChangeAt;
+    }
+
     // toString
     @Override
     public String toString() {
@@ -107,6 +113,15 @@ public class ApplyFor
 
     // Methods
     public void updateStage(ApplicationStage newStage) {
+        if (newStage == null) {
+            throw new IllegalArgumentException("Stage cannot be null.");
+        }
+        //record first time stage changes from APPLIED
+        if (this.stage == ApplicationStage.APPLIED
+                && newStage != ApplicationStage.APPLIED
+                && firstStageChangeAt == null) {
+            firstStageChangeAt = LocalDateTime.now();
+        }
         setStage(newStage);
     }
 
