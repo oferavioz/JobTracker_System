@@ -928,25 +928,280 @@ public class Demo {
     // =========================
     public static void part6(JobTrackerGUI gui) {
         new Thread(() -> {
-            pause();
-            ensureLogin(gui, pickEmail(), pickPass());
-            pause();
 
+            // Slower pacing + emphasize long explanations
+            final int SHORT_MS = 4500;      // short info
+            final int INFO_MS  = 6500;      // normal info
+            final int BIG_MS   = 9000;      // big info (multi-paragraph)
+            final int HUGE_MS  = 13000;     // very big info (the main explanation)
+            final int WATCH_MS = 3400;      // time to watch list/calendar changes
+
+            pause(500);
+
+            // Login -> then go to main menu first (as requested)
+            ensureLogin(gui, pickEmail(), pickPass());
+            pause(900);
+
+            runOnEdt(() -> call(gui, "showCard", new Class[]{String.class, boolean.class},
+                    new Object[]{getStaticCard("C_MENU"), false}));
+            pause(1200);
+
+            showInfo("Demo - Notifications",
+                    "Part 6: Notifications.\nNow we will demonstrate the notifications feature.\nEntering: My Notifications.",
+                    INFO_MS);
+            pause(INFO_MS + 700);
+
+            // Enter My Notifications
             runOnEdt(() -> {
                 call(gui, "refreshNotifs");
-                call(gui, "showCard", new Class[]{String.class, boolean.class}, new Object[]{getStaticCard("C_NOTIFS"), true});
+                call(gui, "showCard", new Class[]{String.class, boolean.class},
+                        new Object[]{getStaticCard("C_NOTIFS"), true});
             });
-            pause(1300);
+            pause(1800);
+
+            // Explain 2 types (BIG/HUGE)
+            showInfo("Demo - Notifications",
+                    "There are 2 notification types:\n\n" +
+                            "1) System notifications (not tied to a specific event):\n" +
+                            "   Alerts about processes where the job was published more than 60 days ago,\n" +
+                            "   so the user may want to check if the position is still open.\n\n" +
+                            "2) Event notifications:\n" +
+                            "   The user receives a notification about ~24 hours before an event occurs.",
+                    HUGE_MS);
+            pause(HUGE_MS + 900);
+
+            // Go to calendar
+            runOnEdt(() -> {
+                call(gui, "resetCalendarToNow");
+                call(gui, "refreshCalendar");
+                call(gui, "showCard", new Class[]{String.class, boolean.class},
+                        new Object[]{getStaticCard("C_EVENTS"), true});
+            });
+            pause(1800);
+
+            // Highlight tomorrow with the blue rectangle (show the click)
+            LocalDate tomorrow = LocalDate.now().plusDays(1);
+            runOnEdt(() -> call(gui, "refreshCalendar"));
+            clickCalendarDay(gui, tomorrow, 1);
+            pause(1100);
+
+            showInfo("Demo - Notifications",
+                    "In the calendar you can see that tomorrow (in less than 24 hours)\n" +
+                            "there are 2 events.\n" +
+                            "Therefore, we expect to see event notifications in My Notifications.",
+                    BIG_MS);
+            pause(BIG_MS + 900);
+
+            // Back to notifications - show the messages
+            runOnEdt(() -> {
+                call(gui, "refreshNotifs");
+                call(gui, "showCard", new Class[]{String.class, boolean.class},
+                        new Object[]{getStaticCard("C_NOTIFS"), true});
+            });
+            pause(1900);
+
+            // Give a moment to watch the list
+            pause(WATCH_MS + 600);
+
+            // Mark one as seen (show selection)
+            showInfo("Demo - Notifications",
+                    "Now we can mark a notification as 'Seen'.\n" +
+                            "We will select one notification and mark it as seen using the single-item button.",
+                    BIG_MS);
+            pause(BIG_MS + 700);
 
             runOnEdt(() -> {
                 JList<?> list = (JList<?>) get(gui, "notifsList");
-                if (list != null && list.getModel().getSize() > 0) list.setSelectedIndex(0);
-                call(gui, "markNotifSeen");
+                if (list != null && list.getModel().getSize() > 0) {
+                    list.setSelectedIndex(0);
+                    list.ensureIndexIsVisible(0);
+                }
             });
-            pause(1200);
+            pause(1100);
+            pause(WATCH_MS + 400);
 
-            runOnEdt(() -> call(gui, "markAllNotifsSeen"));
+            // Click "Mark Selected As Seen"
+            runOnEdtLater(() -> {
+                JButton b = findButtonInActiveFrame("Mark Selected As Seen");
+                if (b != null) b.doClick();
+            });
+            pause(1700);
+
+            runOnEdt(() -> call(gui, "refreshNotifs"));
+            pause(1100);
+            pause(WATCH_MS + 400);
+
+            showInfo("Demo - Notifications",
+                    "The selected notification is now marked as seen.\n\n" +
+                            "Additionally, there is an option to mark ALL notifications as 'Seen'.",
+                    BIG_MS);
+            pause(BIG_MS + 700);
+
+            // Click "Mark All As Seen" and let viewer see the change
+            runOnEdtLater(() -> {
+                JButton b = findButtonInActiveFrame("Mark All As Seen");
+                if (b != null) b.doClick();
+            });
+            pause(1600);
+
+            runOnEdt(() -> call(gui, "refreshNotifs"));
+            pause(1100);
+            pause(WATCH_MS + 800);
+
+            // Now: add event in +2 days, and show that no notif yet (>24h)
+            showInfo("Demo - Notifications",
+                    "Next: we will add a new event to the calendar\n" +
+                            "and verify that an event notification is created only when the event is within ~24 hours.",
+                    BIG_MS);
+            pause(BIG_MS + 900);
+
+            // Go to calendar
+            runOnEdt(() -> {
+                call(gui, "resetCalendarToNow");
+                call(gui, "refreshCalendar");
+                call(gui, "showCard", new Class[]{String.class, boolean.class},
+                        new Object[]{getStaticCard("C_EVENTS"), true});
+            });
+            pause(1800);
+
+            // Create an event +2 days (must be >24h)
+            LocalDateTime addDT = LocalDateTime.now()
+                    .plusDays(2)
+                    .withHour(10)
+                    .withMinute(0)
+                    .withSecond(0)
+                    .withNano(0);
+
+            String addTitle = "Notifications Demo Event";
+            int addDur = 30;
+
+            // Move blue rectangle to the new event day (show click)
+            LocalDate addDay = addDT.toLocalDate();
+            runOnEdt(() -> call(gui, "refreshCalendar"));
+            clickCalendarDay(gui, addDay, 1);
+            pause(1100);
+
+            // Open Add Event screen and fill
+            showCard(gui, getStaticCard("C_ADD_EVENT"));
+            pause(1300);
+
+            runOnEdt(() -> selectComboByValue(gui, "eventTypeCB", "Meeting"));
+            typeField(gui, "eventTitleTF", addTitle, TYPE_DELAY_MS);
+            typeField(gui, "eventDateTimeTF", addDT.format(DT_FMT), TYPE_DELAY_MS);
+            typeField(gui, "eventDurationTF", String.valueOf(addDur), TYPE_DELAY_MS);
+            typeArea(gui, "eventNotesTA", "Added in Demo.part6", TYPE_DELAY_AREA_MS);
+
+            pause(550);
+            runOnEdt(() -> call(gui, "submitEvent"));
+            pause(2700);
+
+            // Back to calendar: refresh + highlight the day again so it is visible
+            runOnEdt(() -> call(gui, "refreshCalendar"));
+            clickCalendarDay(gui, addDay, 1);
             pause(1200);
+            pause(WATCH_MS + 900);
+
+            // Go to notifications: should NOT show event notif yet
+            runOnEdt(() -> {
+                call(gui, "refreshNotifs");
+                call(gui, "showCard", new Class[]{String.class, boolean.class},
+                        new Object[]{getStaticCard("C_NOTIFS"), true});
+            });
+            pause(1900);
+
+            pause(WATCH_MS + 800);
+
+            showInfo("Demo - Notifications",
+                    "We did not receive a notification for the new event yet,\n" +
+                            "because it occurs in more than 24 hours.",
+                    BIG_MS);
+            pause(BIG_MS + 800);
+
+            // Now change the event time to within 7 hours -> should generate event notification
+            runOnEdt(() -> {
+                call(gui, "resetCalendarToNow");
+                call(gui, "refreshCalendar");
+                call(gui, "showCard", new Class[]{String.class, boolean.class},
+                        new Object[]{getStaticCard("C_EVENTS"), true});
+            });
+            pause(1800);
+
+            // Highlight the event day again before editing (show click)
+            runOnEdt(() -> call(gui, "refreshCalendar"));
+            clickCalendarDay(gui, addDay, 1);
+            pause(1100);
+
+            // Prepare edit list filtered by that day
+            try {
+                Field f = JobTrackerGUI.class.getDeclaredField("selectedDay");
+                f.setAccessible(true);
+                f.set(gui, addDay);
+            } catch (Exception ignored) {}
+
+            runOnEdt(() -> {
+                call(gui, "refreshEditEventsList");
+                call(gui, "showCard", new Class[]{String.class, boolean.class},
+                        new Object[]{getStaticCard("C_EDIT_EVENT"), true});
+            });
+            pause(1900);
+
+            // Select our event in the edit list (by title contains)
+            runOnEdt(() -> {
+                try {
+                    JList<?> list = (JList<?>) get(gui, "editEventsList");
+                    if (list == null) return;
+                    ListModel<?> model = list.getModel();
+                    for (int i = 0; i < model.getSize(); i++) {
+                        Object it = model.getElementAt(i);
+                        if (it instanceof Model.Event ev) {
+                            String t = ev.getTitle();
+                            if (t != null && t.contains(addTitle)) {
+                                list.setSelectedIndex(i);
+                                list.ensureIndexIsVisible(i);
+                                return;
+                            }
+                        }
+                    }
+                    if (model.getSize() > 0) list.setSelectedIndex(0);
+                } catch (Exception ignored) {}
+            });
+            pause(1100);
+
+            // Change time to within 7 hours
+            LocalDateTime nearDT = LocalDateTime.now()
+                    .plusHours(7)
+                    .withSecond(0)
+                    .withNano(0);
+
+            typeField(gui, "editEventDateTimeTF", nearDT.format(DT_FMT), TYPE_DELAY_MS);
+
+            // Let viewer see the edit screen before saving (longer)
+            pause(5200);
+
+            runOnEdt(() -> call(gui, "submitEditEvent"));
+            pause(2900);
+
+            // Back to notifications: should now show an event notification
+            runOnEdt(() -> {
+                call(gui, "refreshNotifs");
+                call(gui, "showCard", new Class[]{String.class, boolean.class},
+                        new Object[]{getStaticCard("C_NOTIFS"), true});
+            });
+            pause(2000);
+
+            pause(WATCH_MS + 900);
+
+            showInfo("Demo - Notifications",
+                    "After changing the event to occur within less than 24 hours,\n" +
+                            "an event notification was received as expected.",
+                    BIG_MS);
+            pause(BIG_MS + 800);
+
+            // Finish Part 6 (big end screen)
+            showInfo("Demo - Notifications",
+                    "Part 6 completed: Notifications.",
+                    INFO_MS + 1000);
+            pause(INFO_MS + 1500);
 
         }, "Demo-Part6").start();
     }
@@ -956,29 +1211,271 @@ public class Demo {
     // =========================
     public static void part7(JobTrackerGUI gui) {
         new Thread(() -> {
-            pause();
-            ensureLogin(gui, pickEmail(), pickPass());
-            pause();
 
+            // Slower pacing + big messages longer
+            final int START_MSG_MS = 8000;
+            final int BIG_MSG_MS = 12000;
+            final int MID_MSG_MS = 8000;
+            final int WATCH_NO_MSG_MS = 4200;
+
+            pause(500);
+
+            // Ensure logged in, then go to Main Menu
+            ensureLogin(gui, pickEmail(), pickPass());
+            pause(900);
+
+            runOnEdt(() -> call(gui, "showCard", new Class[]{String.class, boolean.class},
+                    new Object[]{getStaticCard("C_MENU"), false}));
+            pause(1200);
+
+            // Start Part 7 message (shown on main menu)
+            showInfo("Demo - Statistics",
+                    "Part 7: Statistics for the current user.\n" +
+                            "We will review the Statistics screen, then change a process to see the impact,\n" +
+                            "and finally export the statistics as TXT and HTML.",
+                    START_MSG_MS);
+            pause(START_MSG_MS + 700);
+
+            // Enter Statistics
             runOnEdt(() -> {
                 call(gui, "refreshStats");
-                call(gui, "showCard", new Class[]{String.class, boolean.class}, new Object[]{getStaticCard("C_STATS"), true});
+                call(gui, "showCard", new Class[]{String.class, boolean.class},
+                        new Object[]{getStaticCard("C_STATS"), true});
             });
             pause(1700);
 
-            // Export TXT (native FileDialog may require manual cancel)
-            runOnEdtLater(() -> call(gui, "exportStatisticsAsTxt"));
-            pause(1000);
-            tryCloseNativeFileDialogBestEffort();
+            // --- Explain the screen (split into 3 big messages) ---
+            showInfo("Demo - Statistics (Left side)",
+                    "On the LEFT side you can see:\n" +
+                            "- Total number of processes for the user\n" +
+                            "- How many processes are Active vs Not Active\n" +
+                            "- Total number of events and how many are upcoming\n" +
+                            "- The company with the most applications and the number of applications\n" +
+                            "- Average time (in days) to move from the initial stage to later stages",
+                    BIG_MSG_MS-1000);
+            pause(BIG_MSG_MS);
+
+            pause(WATCH_NO_MSG_MS);
+
+            showInfo("Demo - Statistics (Right side - chart)",
+                    "On the RIGHT side (top) you can see a chart:\n" +
+                            "- Applications opened per week\n" +
+                            "- Displayed for the last 4 weeks",
+                    MID_MSG_MS-2000);
+            pause(MID_MSG_MS);
+
+            pause(WATCH_NO_MSG_MS);
+
+            showInfo("Demo - Statistics (Right side - stages)",
+                    "On the RIGHT side (bottom) you can see:\n" +
+                            "- Stage breakdown for all processes\n" +
+                            "- This section updates when process stages change",
+                    MID_MSG_MS-2000);
+            pause(MID_MSG_MS);
+
+            pause(WATCH_NO_MSG_MS);
+
+            // --- Go to My Processes ---
+            runOnEdt(() -> {
+                call(gui, "refreshProcesses");
+                call(gui, "showCard", new Class[]{String.class, boolean.class},
+                        new Object[]{getStaticCard("C_PROCESSES"), true});
+            });
+            pause(1600);
+
+            showInfo("Demo - Processes",
+                    "Now we will change a process to demonstrate the impact on statistics.\n" +
+                            "We will open the first process (Backend), then change its stage and status.",
+                    MID_MSG_MS);
+            pause(MID_MSG_MS + 700);
+
+            // Select a process: prefer one whose toString contains "Backend", else first
+            final ApplyFor[] chosen = new ApplyFor[1];
+            runOnEdt(() -> {
+                try {
+                    JList<?> list = (JList<?>) get(gui, "appsList");
+                    if (list == null || list.getModel().getSize() == 0) return;
+
+                    int best = -1;
+                    ListModel<?> model = list.getModel();
+                    for (int i = 0; i < model.getSize(); i++) {
+                        Object it = model.getElementAt(i);
+                        if (it != null && it.toString().toLowerCase(java.util.Locale.ROOT).contains("backend")) {
+                            best = i;
+                            break;
+                        }
+                    }
+                    if (best < 0) best = 0;
+
+                    list.setSelectedIndex(best);
+                    list.ensureIndexIsVisible(best);
+                    Object v = list.getSelectedValue();
+                    if (v instanceof ApplyFor a) chosen[0] = a;
+                } catch (Exception ignored) {}
+            });
             pause(900);
 
-            // Export HTML
-            runOnEdtLater(() -> call(gui, "exportStatisticsAsHtml"));
-            pause(1000);
-            tryCloseNativeFileDialogBestEffort();
+            if (chosen[0] == null) return;
+
+            // Open process details
+            runOnEdt(() -> call(gui, "openProcessDetails", new Class[]{ApplyFor.class}, new Object[]{chosen[0]}));
+            pause(1700);
+
+            showInfo("Demo - Process Details",
+                    "Now we will change the process:\n" +
+                            "- Change the stage from an initial stage to a later stage (Interview)\n" +
+                            "- Also toggle the process status to Not Active (for demonstration)",
+                    BIG_MSG_MS);
+            pause(BIG_MSG_MS + 700);
+
+            // --- Apply changes: stage + status (NO hard-coded enum constant) ---
+
+            runOnEdt(() -> {
+                try {
+                    // Toggle status to Not Active if not already
+                    JLabel statusVal = (JLabel) get(gui, "pdStatusVal");
+                    JButton toggleBtn = (JButton) get(gui, "pdToggleStatusBtn");
+                    String st = (statusVal == null || statusVal.getText() == null) ? "" : statusVal.getText().trim();
+                    boolean isNotActive = st.equalsIgnoreCase("Not Active") || st.equalsIgnoreCase("Not active");
+                    if (!isNotActive && toggleBtn != null && toggleBtn.isEnabled()) {
+                        toggleBtn.doClick();
+                    }
+                } catch (Exception ignored) {}
+            });
+
+            pause(800);
+
+            runOnEdt(() -> {
+                try {
+                    JComboBox<?> cb = (JComboBox<?>) get(gui, "pdStageCB");
+                    if (cb != null && cb.getItemCount() > 0) {
+                        Object pick = null;
+
+                        // Prefer "Interview"
+                        for (int i = 0; i < cb.getItemCount(); i++) {
+                            Object it = cb.getItemAt(i);
+                            if (it == null) continue;
+                            String s = it.toString().toLowerCase(java.util.Locale.ROOT);
+                            if (s.contains("interview")) { pick = it; break; }
+                        }
+
+                        // Otherwise: pick something "later" looking (best-effort)
+                        if (pick == null) {
+                            for (int i = 0; i < cb.getItemCount(); i++) {
+                                Object it = cb.getItemAt(i);
+                                if (it == null) continue;
+                                String s = it.toString().toLowerCase(java.util.Locale.ROOT);
+                                if (s.contains("hr") || s.contains("phone") || s.contains("test") || s.contains("assignment")
+                                        || s.contains("offer") || s.contains("reject") || s.contains("withdraw")) {
+                                    pick = it; break;
+                                }
+                            }
+                        }
+
+                        if (pick != null) cb.setSelectedItem(pick);
+                        else if (cb.getItemCount() > 1) cb.setSelectedIndex(1);
+                    }
+                } catch (Exception ignored) {}
+            });
+
             pause(900);
+
+            runOnEdtLater(() -> {
+                JButton save = findButtonInActiveFrame("Save Changes");
+                if (save != null) save.doClick();
+            });
+            pause(2200);
+
+            // Back to Statistics and refresh
+            runOnEdt(() -> {
+                call(gui, "refreshStats");
+                call(gui, "showCard", new Class[]{String.class, boolean.class},
+                        new Object[]{getStaticCard("C_STATS"), false});
+            });
+            pause(1800);
+
+            pause(WATCH_NO_MSG_MS + 1000);
+
+            showInfo("Demo - Statistics (Updated)",
+                    "Now you should see changes in the statistics:\n" +
+                            "- On the LEFT: Active vs Not Active counts changed\n" +
+                            "- The average days to move from initial stage to later stages may change\n" +
+                            "- On the RIGHT (bottom): stage breakdown changed",
+                    BIG_MSG_MS);
+            pause(BIG_MSG_MS + 900);
+
+            pause(WATCH_NO_MSG_MS);
+
+            // --- Export statistics ---
+            showInfo("Demo - Export Statistics",
+                    "Finally, we will export the statistics to TXT and HTML files.\n" +
+                            "The files will be created in Data folder in the project.",
+                    MID_MSG_MS);
+            pause(MID_MSG_MS + 700);
+
+            Path dataDir = resolveDataDir();
+
+            autoPressOkOnNextDialog(DIALOG_TIMEOUT_MS, 1200);
+            runOnEdtLater(() -> call(gui, "exportStatisticsTxtTo",
+                    new Class[]{Path.class},
+                    new Object[]{dataDir.resolve("statistics.txt")}));
+            pause(1600);
+            waitForNoDialogs(2500);
+
+            autoPressOkOnNextDialog(DIALOG_TIMEOUT_MS, 1200);
+            runOnEdtLater(() -> call(gui, "exportStatisticsHtmlTo",
+                    new Class[]{Path.class},
+                    new Object[]{dataDir.resolve("statistics.html")}));
+            pause(1600);
+            waitForNoDialogs(2500);
+
+            showInfo("Demo - Export Completed",
+                    "The statistics have been exported as TXT and HTML files in the Data folder.",
+                    MID_MSG_MS);
+            pause(MID_MSG_MS + 800);
+
+
+            showInfo("Demo - Done", "Part 7 completed.", 5200);
+            pause(5600);
 
         }, "Demo-Part7").start();
+    }
+
+    // part 7 helper :
+    private static Path resolveDataDir() {
+        // 1) Prefer: directory where the app (jar/classes) is located
+        Path baseDir = null;
+        try {
+            baseDir = Paths.get(Demo.class.getProtectionDomain()
+                            .getCodeSource()
+                            .getLocation()
+                            .toURI())
+                    .toAbsolutePath();
+
+            // If running from a JAR -> baseDir is the jar file path; use its parent
+            // If running from IDE -> baseDir is classes dir; use it as starting point
+            if (Files.isRegularFile(baseDir)) {
+                baseDir = baseDir.getParent();
+            }
+        } catch (Exception ignored) {}
+
+        // 2) Fallback: working directory (less reliable, but better than nothing)
+        if (baseDir == null) {
+            baseDir = Paths.get("").toAbsolutePath();
+        }
+
+        // 3) Walk up and look for an existing "data" folder
+        Path p = baseDir;
+        for (int i = 0; i < 8 && p != null; i++) {
+            Path cand = p.resolve("data");
+            if (Files.isDirectory(cand)) return cand;
+            p = p.getParent();
+        }
+
+        // 4) If not found - create "data" next to app location
+        Path fallback = baseDir.resolve("data").toAbsolutePath().normalize();
+        try { Files.createDirectories(fallback); } catch (Exception ignored) {}
+        return fallback;
     }
 
     // =========================================================
@@ -1163,40 +1660,6 @@ public class Demo {
             );
             target.dispatchEvent(ev);
         });
-    }
-
-    private static void selectEventInListByContains(JobTrackerGUI gui, String listFieldName, String needle) {
-        runOnEdt(() -> {
-            Object o = get(gui, listFieldName);
-            if (!(o instanceof JList<?> list)) return;
-
-            ListModel<?> m = list.getModel();
-            int best = -1;
-            for (int i = 0; i < m.getSize(); i++) {
-                Object v = m.getElementAt(i);
-                String s = (v == null) ? "" : v.toString();
-                if (s.contains(needle)) { best = i; break; }
-            }
-            if (best >= 0) list.setSelectedIndex(best);
-            else if (m.getSize() > 0) list.setSelectedIndex(0);
-        });
-        pause(200);
-    }
-
-    private static String readFirstEventDateTimeFromEditList(JobTrackerGUI gui) {
-        try {
-            Object o = get(gui, "editEventsList");
-            if (!(o instanceof JList<?> list)) return null;
-            if (list.getModel().getSize() == 0) return null;
-
-            Object first = list.getModel().getElementAt(0);
-            if (first instanceof Model.Event ev && ev.getDateTime() != null) {
-                return ev.getDateTime().format(DT_FMT);
-            }
-            return null;
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     // -----------------------------------------
@@ -1636,17 +2099,6 @@ public class Demo {
             }
         }
         return out;
-    }
-
-    // -------------------------
-    // Native FileDialog close (best effort)
-    // -------------------------
-    private static void tryCloseNativeFileDialogBestEffort() {
-        for (Window w : Window.getWindows()) {
-            if (w == null || !w.isVisible()) continue;
-            String cn = w.getClass().getName();
-            if (cn.contains("FileDialog")) w.dispose();
-        }
     }
 
     // -------------------------

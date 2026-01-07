@@ -2526,18 +2526,37 @@ public class JobTrackerGUI extends JFrame {
         JOptionPane.showMessageDialog(this, new JScrollPane(ta), "Short instructions", JOptionPane.INFORMATION_MESSAGE);
     }
 
+    private String buildStatisticsTxtContent() throws Exception {
+        refreshStats();
+
+        String content = tracker.buildUserStatistics(activeUser);
+        if (content == null) content = "";
+
+        String stage = tracker.formatStageBreakdown(activeUser);
+        stage = (stage == null) ? "" : stage.trim();
+
+        if (!content.contains("Stage breakdown:")) {
+            content += "\n\n====================\nStage breakdown:\n";
+            content += stage.isBlank() ? "(no data)\n" : (stage + "\n");
+        }
+
+        content = content.trim();
+        if (content.isEmpty()) return null;
+        return content + "\n";
+    }
+
+    private void saveTxtTo(java.nio.file.Path outPath, String content) throws Exception {
+        java.nio.file.Files.createDirectories(outPath.getParent());
+        java.nio.file.Files.writeString(outPath, content, java.nio.charset.StandardCharsets.UTF_8);
+    }
+
     private void exportStatisticsAsTxt() {
         if (!requireLogin()) return;
-        String content;
+
+        final String content;
         try {
-            refreshStats();
-            content = tracker.buildUserStatistics(activeUser);
-            String stage = tracker.formatStageBreakdown(activeUser);
-            stage = (stage == null) ? "" : stage.trim();
-            if (!content.contains("Stage breakdown:")) {
-                content += "\n\n====================\nStage breakdown:\n";
-                content += stage.isBlank() ? "(no data)\n" : (stage + "\n");
-            }            if (content == null || content.trim().isEmpty()) {
+            content = buildStatisticsTxtContent();
+            if (content == null) {
                 JOptionPane.showMessageDialog(this, "No statistics to export.", "Export", JOptionPane.INFORMATION_MESSAGE);
                 return;
             }
@@ -2545,6 +2564,7 @@ public class JobTrackerGUI extends JFrame {
             JOptionPane.showMessageDialog(this, "Failed to build statistics: " + ex.getMessage(), "Export", JOptionPane.ERROR_MESSAGE);
             return;
         }
+
         FileDialog fd = new FileDialog(this, "Save statistics as TXT", FileDialog.SAVE);
         fd.setFile("statistics.txt");
         fd.setVisible(true);
@@ -2553,23 +2573,24 @@ public class JobTrackerGUI extends JFrame {
         String file = fd.getFile();
         if (dir == null || file == null) return;
 
-        java.io.File out = new java.io.File(dir, file);
+        java.nio.file.Path outPath = new java.io.File(dir, file).toPath();
+
         try {
-            java.nio.file.Files.writeString(out.toPath(), content, java.nio.charset.StandardCharsets.UTF_8);
-            log("Statistics exported to TXT: " + out.getAbsolutePath());
-            JOptionPane.showMessageDialog(this, "Exported:\n" + out.getAbsolutePath(), "Export", JOptionPane.INFORMATION_MESSAGE);
+            saveTxtTo(outPath, content);
+            log("Statistics exported to TXT: " + outPath.toAbsolutePath());
+            JOptionPane.showMessageDialog(this, "Exported:\n" + outPath.toAbsolutePath(), "Export", JOptionPane.INFORMATION_MESSAGE);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Export failed: " + ex.getMessage(), "Export", JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    private void exportStatisticsAsHtml() {
+    public void exportStatisticsTxtTo(java.nio.file.Path outPath) {
         if (!requireLogin()) return;
-        String full;
+
+        final String content;
         try {
-            refreshStats();
-            full = tracker.buildUserStatistics(activeUser);
-            if (full == null || full.trim().isEmpty()) {
+            content = buildStatisticsTxtContent();
+            if (content == null) {
                 JOptionPane.showMessageDialog(this, "No statistics to export.", "Export", JOptionPane.INFORMATION_MESSAGE);
                 return;
             }
@@ -2577,6 +2598,23 @@ public class JobTrackerGUI extends JFrame {
             JOptionPane.showMessageDialog(this, "Failed to build statistics: " + ex.getMessage(), "Export", JOptionPane.ERROR_MESSAGE);
             return;
         }
+
+        try {
+            saveTxtTo(outPath, content);
+            log("Statistics exported to TXT: " + outPath.toAbsolutePath());
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Export failed: " + ex.getMessage(), "Export", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private String buildStatisticsHtmlContent() throws Exception {
+        refreshStats();
+
+        String full = tracker.buildUserStatistics(activeUser);
+        if (full == null) full = "";
+        full = full.trim();
+        if (full.isEmpty()) return null;
+
         String stage = "";
         try {
             stage = tracker.formatStageBreakdown(activeUser);
@@ -2596,17 +2634,39 @@ public class JobTrackerGUI extends JFrame {
                             (stage.isBlank() ? "(no data)" : stageHtml) +
                             "</div>";
         }
+
         String body = toBoldDetailsHtml(full).replaceFirst("(?i)<html>\\s*<body", "<html><body");
-        String html =
-                "<!DOCTYPE html>\n" +
-                        "<html>\n<head>\n<meta charset=\"UTF-8\">\n" +
-                        "<title>JobTracker - Statistics</title>\n</head>\n<body>\n" +
-                        "<h2>Statistics for " + safe(activeUser.getFullName()) + "</h2>\n" +
-                        body
-                                .replaceFirst("(?i)^\\s*<html>\\s*<body[^>]*>", "")
-                                .replaceFirst("(?i)</body>\\s*</html>\\s*$", "") +
-                        extraStageSection +
-                        "\n</body>\n</html>\n";
+
+        return "<!DOCTYPE html>\n" +
+                "<html>\n<head>\n<meta charset=\"UTF-8\">\n" +
+                "<title>JobTracker - Statistics</title>\n</head>\n<body>\n" +
+                "<h2>Statistics for " + safe(activeUser.getFullName()) + "</h2>\n" +
+                body
+                        .replaceFirst("(?i)^\\s*<html>\\s*<body[^>]*>", "")
+                        .replaceFirst("(?i)</body>\\s*</html>\\s*$", "") +
+                extraStageSection +
+                "\n</body>\n</html>\n";
+    }
+
+    private void saveHtmlTo(java.nio.file.Path outPath, String html) throws Exception {
+        java.nio.file.Files.createDirectories(outPath.getParent());
+        java.nio.file.Files.writeString(outPath, html, java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    private void exportStatisticsAsHtml() {
+        if (!requireLogin()) return;
+
+        final String html;
+        try {
+            html = buildStatisticsHtmlContent();
+            if (html == null) {
+                JOptionPane.showMessageDialog(this, "No statistics to export.", "Export", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Failed to build statistics: " + ex.getMessage(), "Export", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
 
         FileDialog fd = new FileDialog(this, "Save statistics as HTML", FileDialog.SAVE);
         fd.setFile("statistics.html");
@@ -2616,11 +2676,35 @@ public class JobTrackerGUI extends JFrame {
         String file = fd.getFile();
         if (dir == null || file == null) return;
 
-        java.io.File out = new java.io.File(dir, file);
+        java.nio.file.Path outPath = new java.io.File(dir, file).toPath();
+
         try {
-            java.nio.file.Files.writeString(out.toPath(), html, java.nio.charset.StandardCharsets.UTF_8);
-            log("Statistics exported to HTML: " + out.getAbsolutePath());
-            JOptionPane.showMessageDialog(this, "Exported:\n" + out.getAbsolutePath(), "Export", JOptionPane.INFORMATION_MESSAGE);
+            saveHtmlTo(outPath, html);
+            log("Statistics exported to HTML: " + outPath.toAbsolutePath());
+            JOptionPane.showMessageDialog(this, "Exported:\n" + outPath.toAbsolutePath(), "Export", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Export failed: " + ex.getMessage(), "Export", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    public void exportStatisticsHtmlTo(java.nio.file.Path outPath) {
+        if (!requireLogin()) return;
+
+        final String html;
+        try {
+            html = buildStatisticsHtmlContent();
+            if (html == null) {
+                JOptionPane.showMessageDialog(this, "No statistics to export.", "Export", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Failed to build statistics: " + ex.getMessage(), "Export", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        try {
+            saveHtmlTo(outPath, html);
+            log("Statistics exported to HTML: " + outPath.toAbsolutePath());
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Export failed: " + ex.getMessage(), "Export", JOptionPane.ERROR_MESSAGE);
         }

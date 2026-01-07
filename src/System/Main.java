@@ -84,11 +84,14 @@ public class Main {
             //Demo.part2(gui); // Part 2: Menu + Profile + Edit Profile + Change Password
             //Demo.part3(gui); // Part 3: Documents (add, show details, edit, show as : links/files/primary, remove)
             //Demo.part4(gui); // Part 4: Add Application + Processes + Details actions
-            Demo.part5(gui); // Part 5: Events (add/edit/remove)
-            // Demo.part6(gui); // Part 6: Notifications
-            // Demo.part7(gui); // Part 7: Statistics + Export
+            //Demo.part5(gui); // Part 5: Events (add/edit/remove)
+            //Demo.part6(gui); // Part 6: Notifications
+            //Demo.part7(gui); // Part 7: Statistics + Export
 
-
+            // MenuBar : I wanted to show menubar functionality in the demo but unfortunately,
+            // it is not possble to do it automatically, so please test it manually. Thank you :)
+            // MenuBar guide :
+            // FILE -
 
         });
     }
