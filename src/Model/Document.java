@@ -20,13 +20,6 @@ public class Document
         setTarget(target);
         setLastUpdate(LocalDateTime.now());
     }
-    public Document(String docName, String documentType, String target, LocalDateTime lastUpdate)
-    {
-        setDocName(docName);
-        setDocumentType(documentType);
-        setTarget(target);
-        setLastUpdate(lastUpdate);
-    }
 
     // Setters
     public void setDocName(String docName) {
@@ -41,7 +34,7 @@ public class Document
         if (documentType == null || documentType.trim().isEmpty()) {
             throw new IllegalArgumentException("Document type cannot be null or empty.");
         }
-        String type = documentType.trim().replaceAll("\\s+", " ").toLowerCase();
+        String type = documentType.trim().replaceAll("\\s+", " ");
         this.docType = type;
     }
 

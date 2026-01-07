@@ -68,25 +68,34 @@ public class Contact
             this.role = "";
             return;
         }
-        String s = role.trim().replaceAll("\\s+", " ").toLowerCase();
+        String s = role.trim().replaceAll("\\s+", " ");
+        String[] parts = s.split(" ");
         StringBuilder out = new StringBuilder(s.length());
-        boolean capNext = true;
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if (c == ' ') {
-                out.append(c);
-                capNext = true;
-                continue;
-            }
-            if (capNext && Character.isLetter(c)) {
-                out.append(Character.toUpperCase(c));
-                capNext = false;
-            } else {
-                out.append(c);
-                capNext = false;
-            }
+        for (int i = 0; i < parts.length; i++) {
+            if (i > 0) out.append(' ');
+            out.append(fixWordOrAbbrev(parts[i]));
         }
         this.role = out.toString();
+    }
+
+    private String fixWordOrAbbrev(String w) {
+        if (w == null || w.isEmpty()) return w;
+        boolean hasUpper = w.chars().anyMatch(Character::isUpperCase);
+        boolean hasLower = w.chars().anyMatch(Character::isLowerCase);
+        //stays as it is
+        if (hasUpper && hasLower) return w;
+        //check for non-letters - if so stay as is
+        boolean hasNonLetter = w.chars().anyMatch(ch -> !Character.isLetter(ch));
+        if (hasNonLetter) {
+            return w;
+        }
+        //all uppercase (for shortcuts)
+        if (w.length() <= 3) {
+            return w.toUpperCase();
+        }
+        //capitalize first letter only - regular word
+        String low = w.toLowerCase();
+        return Character.toUpperCase(low.charAt(0)) + low.substring(1);
     }
 
     public void setContactEmail(String contactEmail) {
@@ -225,14 +234,14 @@ public class Contact
         return info;
     }
 
-    public void logContact(String method, String subject) {
+    public void logContact(String method, String subject, LocalDateTime dateTime) {
         if ((method == null || method.trim().isEmpty()) &&
                 (subject == null || subject.trim().isEmpty())) {
             throw new IllegalArgumentException("You must provide method or subject.");
         }
         setLastContactMethod(method);
         setLastContactSubject(subject);
-        setContactDate(LocalDateTime.now());
+        setContactDate(dateTime);
     }
 
 }

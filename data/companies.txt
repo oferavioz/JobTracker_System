@@ -1,0 +1,5 @@
+Matrix|Hi-Tech|https://www.matrix.co.il|Tel Aviv;Kfar Saba
+Intel|Hi-Tech|https://www.intel.com/content/www/us/en/homepage.html|Tel Aviv
+Wix|Hi-Tech|https://www.wix.com|Tel Aviv
+Google|Hi-Tech|https://www.google.com/intl/en/about/|Tel Aviv
+Democorp|Hi-Tech|https://example.com|Tel Aviv

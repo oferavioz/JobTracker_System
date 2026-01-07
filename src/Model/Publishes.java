@@ -77,23 +77,7 @@ public class Publishes
     }
 
     public void updatePostingChannel(String newChannel) {
-        if (newChannel == null || newChannel.trim().isEmpty()) {
-            return;
-        }
-        String value = newChannel.trim().replaceAll("\\s+", " ");
-        //check if the value already exists in postingChannel
-        if (postingChannel == null || postingChannel.trim().isEmpty()) {
-            setPostingChannel(value);
-            return;
-        }
-        //avoid duplicates
-        String[] lines = postingChannel.split("\\r?\\n");
-        for (String line : lines) {
-            if (line.trim().equalsIgnoreCase(value)) {
-                return;
-            }
-        }
-        postingChannel += "\n" + value;
+        setPostingChannel(newChannel);
     }
 
 }

@@ -2,8 +2,7 @@ package System;
 
 import Model.*;
 import Model.Event;
-import Threads.AddApplicationTask;
-import Threads.AddEventThread;
+import Threads.*;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -17,6 +16,16 @@ import java.time.format.DateTimeFormatter;
 
 import java.util.*;
 import java.util.List;
+
+// IMPORTANT :
+// I know that its not good often to mix AWT and Swing components in the same GUI,
+// but in order to answer the porject requirements (= use at least one AWT component from lec 11),
+// i had to do it this way.
+// Swing gives more flexibility and better looks so most of the GUI is Swing based,
+// and only the Documents panel and the MenuBar uses AWT components or being implemented by AWT.
+// Thank you for understanding! enjoy checking my project :)
+// (if it was up to me - i would do everything in Swing only)
+
 
 public class JobTrackerGUI extends JFrame {
 
@@ -62,10 +71,15 @@ public class JobTrackerGUI extends JFrame {
     private JLabel profNameVal, profEmailVal, profPhoneVal, profFieldVal;
 
     // ===== DOCS =====
-    private final DefaultListModel<Stores> filesModel = new DefaultListModel<>();
-    private final DefaultListModel<Stores> linksModel = new DefaultListModel<>();
-    private final JList<Stores> filesList = new JList<>(filesModel);
-    private final JList<Stores> linksList = new JList<>(linksModel);
+    private java.awt.List awtDocsList;
+    private Choice awtDocsChoice;
+    private Checkbox awtPrimaryOnlyCB;
+    private java.awt.Label awtDocsLabel;
+    private Button awtOpenBtn;
+    private Button awtDetailsBtn;
+    private PopupMenu awtDocsPopup;
+    private final java.util.List<Stores> docsAll = new ArrayList<>();
+    private final List<Stores> awtDocsIndex = new ArrayList<>();
 
     // ===== ADD APP =====
     private JTextField appCompanyNameTF, appIndustryTF, appWebsiteTF;
@@ -129,6 +143,10 @@ public class JobTrackerGUI extends JFrame {
     private final JTextArea statsStagesTA = new JTextArea(10, 24);
     private final WeekBarChartPanel statsWeekChart = new WeekBarChartPanel();
 
+    // ==== menu bar ====
+    private JPanel logWrap;
+    private boolean logShown = false;
+
     public JobTrackerGUI(JobTracker tracker) {
         super("JobTracker");
         this.tracker = tracker;
@@ -152,10 +170,15 @@ public class JobTrackerGUI extends JFrame {
         addCard(C_STATS, buildStatsCard());
 
         add(cards, BorderLayout.CENTER);
-        add(buildLogPanel(), BorderLayout.SOUTH);
+        logWrap = buildLogPanel();
+        logWrap.setVisible(false);
+        add(logWrap, BorderLayout.SOUTH);
+
+        setMenuBar(buildAwtMenuBar());
 
         setSize(1050, 720);
         setLocationRelativeTo(null);
+
         setVisible(true);
 
         showCard(C_LOGIN, false);
@@ -261,9 +284,14 @@ public class JobTrackerGUI extends JFrame {
         logArea.append(s + "\n");
     }
 
-    private void requireLogin() {
-        if (activeUser == null) throw new IllegalStateException("Please login first.");
+    private boolean requireLogin() {
+        if (activeUser != null) return true;
+        JOptionPane.showMessageDialog(this, "Please login first.", "Login", JOptionPane.WARNING_MESSAGE);
+        navStack.clear();
+        showCard(C_LOGIN, false);
+        return false;
     }
+
 
     private void doLogout() {
         activeUser = null;
@@ -419,14 +447,8 @@ public class JobTrackerGUI extends JFrame {
         JButton b = new JButton(text);
         b.setPreferredSize(new Dimension(280, 60));
         b.addActionListener(e -> {
-            try {
-                requireLogin();
-                action.run();
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Please login first.", "Login", JOptionPane.WARNING_MESSAGE);
-                navStack.clear();
-                showCard(C_LOGIN, false);
-            }
+            if (!requireLogin()) return;
+            action.run();
         });
         return b;
     }
@@ -524,11 +546,7 @@ public class JobTrackerGUI extends JFrame {
     }
 
     private void openEditProfileDialog() {
-        try {
-            requireLogin();
-        } catch (Exception ex) {
-            return;
-        }
+        if (!requireLogin()) return;
         JTextField fullName = new JTextField(safe(activeUser.getFullName()), 22);
         JTextField phone = new JTextField(safe(activeUser.getPhone()), 22);
         JTextField field = new JTextField(safe(activeUser.getFieldOfSearch()), 22);
@@ -552,7 +570,7 @@ public class JobTrackerGUI extends JFrame {
     }
 
     private void openChangePasswordDialog() {
-        try { requireLogin(); } catch (Exception ex) { return; }
+        if (!requireLogin()) return;
         JPasswordField oldP = new JPasswordField(22);
         JPasswordField newP = new JPasswordField(22);
         JPasswordField againP = new JPasswordField(22);
@@ -589,32 +607,10 @@ public class JobTrackerGUI extends JFrame {
     private JPanel buildDocsCard() {
         JPanel root = new JPanel(new BorderLayout());
         root.add(header("My Documents", true, true), BorderLayout.NORTH);
-        filesList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        linksList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-
-        filesList.addListSelectionListener(e -> { if (!e.getValueIsAdjusting()) linksList.clearSelection(); });
-        linksList.addListSelectionListener(e -> { if (!e.getValueIsAdjusting()) filesList.clearSelection(); });
-
-        filesList.setCellRenderer(storeRenderer());
-        linksList.setCellRenderer(storeRenderer());
-
-        filesList.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override public void mouseClicked(java.awt.event.MouseEvent e) {
-                if (e.getClickCount() == 2) openStoreDetailsDialog(getSelectedStore());
-            }
-        });
-        linksList.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override public void mouseClicked(java.awt.event.MouseEvent e) {
-                if (e.getClickCount() == 2) openStoreDetailsDialog(getSelectedStore());
-            }
-        });
-        JTabbedPane tabs = new JTabbedPane();
-        tabs.addTab("Files", new JScrollPane(filesList));
-        tabs.addTab("Links", new JScrollPane(linksList));
 
         JPanel center = new JPanel(new BorderLayout(6, 6));
         center.setBorder(new EmptyBorder(10, 10, 10, 10));
-        center.add(tabs, BorderLayout.CENTER);
+        center.add(buildDocsAwtPanel(), BorderLayout.CENTER);
         root.add(center, BorderLayout.CENTER);
 
         JPanel bottom = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 10));
@@ -631,45 +627,30 @@ public class JobTrackerGUI extends JFrame {
         return root;
     }
 
-    private DefaultListCellRenderer storeRenderer() {
-        return new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-                if (value instanceof Stores s) {
-                    Document d = s.getDocument();
-                    setText(d == null ? "-" : d.toString());
-                }
-                return this;
-            }
-        };
-    }
-
     private Stores getSelectedStore() {
-        Stores s = filesList.getSelectedValue();
-        if (s == null) s = linksList.getSelectedValue();
-        return s;
+        return getSelectedStoreFromAwt();
     }
 
     private void refreshDocs() {
         try {
-            requireLogin();
-            filesModel.clear();
-            linksModel.clear();
+            if (!requireLogin()) return;
+
+            docsAll.clear();
             Vector<Stores> all = tracker.listUserDocuments(activeUser);
             for (Stores s : all) {
                 if (s == null || s.getDocument() == null) continue;
-                if (isUrlDoc(s.getDocument())) linksModel.addElement(s);
-                else filesModel.addElement(s);
+                docsAll.add(s);
             }
+
             log("Documents refreshed.");
+            refreshAwtDocsView();
         } catch (Exception ex) {
             log("Docs refresh failed: " + ex.getMessage());
         }
     }
 
     private void openAddDocumentDialog() {
-        try { requireLogin(); } catch (Exception ex) { return; }
+        if (!requireLogin()) return;
         JTextField name = new JTextField(22);
         JComboBox<String> type = new JComboBox<>(new String[]{"File", "URL"});
         JTextField target = new JTextField(22);
@@ -701,7 +682,7 @@ public class JobTrackerGUI extends JFrame {
     }
 
     private void removeSelectedOrByName() {
-        try { requireLogin(); } catch (Exception ex) { return; }
+        if (!requireLogin()) return;
         Stores selected = getSelectedStore();
         String nameToRemove;
         if (selected != null && selected.getDocument() != null) {
@@ -785,7 +766,7 @@ public class JobTrackerGUI extends JFrame {
     }
 
     private void openEditStoreDialog(Stores s) {
-        try { requireLogin(); } catch (Exception ex) { return; }
+        if (!requireLogin()) return;
         if (s == null || s.getDocument() == null) return;
         Document d = s.getDocument();
 
@@ -854,6 +835,153 @@ public class JobTrackerGUI extends JFrame {
         return t != null && t.trim().equalsIgnoreCase("URL");
     }
 
+    private Panel buildDocsAwtPanel() {
+        Panel root = new Panel(new BorderLayout(6, 6));
+
+        Panel top = new Panel(new FlowLayout(FlowLayout.LEFT, 8, 6));
+
+        awtDocsLabel = new java.awt.Label("View:");
+        awtDocsChoice = new Choice();
+        awtDocsChoice.add("All");
+        awtDocsChoice.add("Files");
+        awtDocsChoice.add("Links");
+
+        awtPrimaryOnlyCB = new Checkbox("Primary only");
+
+        awtOpenBtn = new Button("Open");
+        awtDetailsBtn = new Button("Details");
+
+        awtDocsChoice.addItemListener(e -> refreshAwtDocsView());
+        awtPrimaryOnlyCB.addItemListener(e -> refreshAwtDocsView());
+
+        awtOpenBtn.addActionListener(e -> openSelectedAwtDoc());
+        awtDetailsBtn.addActionListener(e -> detailsSelectedAwtDoc());
+
+        top.add(awtDocsLabel);
+        top.add(awtDocsChoice);
+        top.add(awtPrimaryOnlyCB);
+        top.add(awtOpenBtn);
+        top.add(awtDetailsBtn);
+
+        awtDocsList = new java.awt.List(14, false);
+        awtDocsList.addActionListener(e -> detailsSelectedAwtDoc());
+
+        awtDocsPopup = new PopupMenu();
+
+        MenuItem pmOpen = new MenuItem("Open");
+        pmOpen.addActionListener(e -> openSelectedAwtDoc());
+        awtDocsPopup.add(pmOpen);
+
+        MenuItem pmDetails = new MenuItem("Details");
+        pmDetails.addActionListener(e -> detailsSelectedAwtDoc());
+        awtDocsPopup.add(pmDetails);
+
+        awtDocsPopup.addSeparator();
+
+        MenuItem pmRemove = new MenuItem("Remove");
+        pmRemove.addActionListener(e -> removeSelectedAwtDoc());
+        awtDocsPopup.add(pmRemove);
+
+        awtDocsList.add(awtDocsPopup);
+
+        awtDocsList.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override public void mousePressed(java.awt.event.MouseEvent e) { maybeShowDocsPopup(e); }
+            @Override public void mouseReleased(java.awt.event.MouseEvent e) { maybeShowDocsPopup(e); }
+        });
+
+        root.add(top, BorderLayout.NORTH);
+        root.add(awtDocsList, BorderLayout.CENTER);
+
+        refreshAwtDocsView();
+
+        return root;
+    }
+
+    private void maybeShowDocsPopup(java.awt.event.MouseEvent e) {
+        if (awtDocsPopup == null || awtDocsList == null) return;
+        if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
+            awtDocsPopup.show(awtDocsList, e.getX(), e.getY());
+        }
+    }
+
+    private void refreshAwtDocsView() {
+        if (awtDocsList == null) return;
+
+        if (activeUser == null) {
+            awtDocsList.removeAll();
+            awtDocsIndex.clear();
+            return;
+        }
+
+        awtDocsList.removeAll();
+        awtDocsIndex.clear();
+
+        String mode = (awtDocsChoice == null) ? "All" : Objects.toString(awtDocsChoice.getSelectedItem(), "All");
+        boolean primaryOnly = awtPrimaryOnlyCB != null && awtPrimaryOnlyCB.getState();
+
+        ArrayList<Stores> all = new ArrayList<>(docsAll);
+
+        for (Stores s : all) {
+            if (s == null || s.getDocument() == null) continue;
+
+            if (primaryOnly && !s.isPrimary()) continue;
+
+            boolean isUrl = isUrlDoc(s.getDocument());
+            if (mode.equalsIgnoreCase("Files") && isUrl) continue;
+            if (mode.equalsIgnoreCase("Links") && !isUrl) continue;
+
+            Document d = s.getDocument();
+            awtDocsList.add(d == null ? "-" : d.toString());
+            awtDocsIndex.add(s);
+        }
+
+        if (awtDocsList.getItemCount() > 0) {
+            awtDocsList.select(0);
+        }
+    }
+
+    private Stores getSelectedStoreFromAwt() {
+        if (awtDocsList == null) return null;
+        int idx = awtDocsList.getSelectedIndex();
+        if (idx < 0 || idx >= awtDocsIndex.size()) return null;
+        return awtDocsIndex.get(idx);
+    }
+
+    private void openSelectedAwtDoc() {
+        Stores s = getSelectedStoreFromAwt();
+        if (s == null || s.getDocument() == null) return;
+        Stores updated = tracker.getStoredDocument(activeUser, s.getDocument().getDocName());
+        if (updated == null) updated = s;
+        openStoredDocument(updated);
+    }
+
+    private void detailsSelectedAwtDoc() {
+        Stores s = getSelectedStoreFromAwt();
+        if (s == null || s.getDocument() == null) return;
+        Stores updated = tracker.getStoredDocument(activeUser, s.getDocument().getDocName());
+        if (updated == null) updated = s;
+        openStoreDetailsDialog(updated);
+    }
+
+    private void removeSelectedAwtDoc() {
+        if (!requireLogin()) return;
+        Stores s = getSelectedStoreFromAwt();
+        if (s == null || s.getDocument() == null) return;
+
+        int ok = JOptionPane.showConfirmDialog(this,
+                "Remove document: " + safe(s.getDocument().getDocName()) + " ?",
+                "Remove Document", JOptionPane.OK_CANCEL_OPTION);
+        if (ok != JOptionPane.OK_OPTION) return;
+
+        try {
+            boolean done = tracker.removeDocument(activeUser, s.getDocument().getDocName());
+            log(done ? "Document removed." : "Document not found.");
+            refreshDocs();
+        } catch (Exception ex2) {
+            JOptionPane.showMessageDialog(this, ex2.getMessage(), "Remove Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     // =========================
     // ADD APPLICATION
     // =========================
@@ -912,11 +1040,7 @@ public class JobTrackerGUI extends JFrame {
     }
 
     private void submitApplication() {
-        try {
-            requireLogin();
-        } catch (Exception ex) {
-            return;
-        }
+        if (!requireLogin()) return;
         String positionId = appPositionIdTF.getText();
         String title = appTitleTF.getText();
         String field = Objects.toString(appFieldCB.getSelectedItem(), "Other");
@@ -1044,7 +1168,6 @@ public class JobTrackerGUI extends JFrame {
         bottom.add(removeBtn);
 
         root.add(bottom, BorderLayout.SOUTH);
-        refreshCalendar();
         return root;
     }
 
@@ -1064,7 +1187,7 @@ public class JobTrackerGUI extends JFrame {
 
     private void refreshCalendar() {
         try {
-            requireLogin();
+            if (!requireLogin()) return;
             calGrid.removeAll();
             YearMonth ym = YearMonth.of(calYear, calMonth);
             LocalDate firstDay = ym.atDay(1);
@@ -1203,7 +1326,7 @@ public class JobTrackerGUI extends JFrame {
         GridBagConstraints gc = gb();
         gc.gridy = 0;
 
-        eventTypeCB = new JComboBox<>(new String[]{"Interview", "Call", "Meeting", "Deadline", "Other"});
+        eventTypeCB = new JComboBox<>(new String[]{"Interview", "Phone Call", "Follow-up", "Meeting", "Deadline", "Other"});
         eventTitleTF = new JTextField();
         eventDateTimeTF = new JTextField();
         eventDurationTF = new JTextField();
@@ -1224,7 +1347,7 @@ public class JobTrackerGUI extends JFrame {
     }
 
     private void submitEvent() {
-        try { requireLogin(); } catch (Exception ex) { return; }
+        if (!requireLogin()) return;
         final Event ev;
         try {
             LocalDateTime dt = LocalDateTime.parse(eventDateTimeTF.getText().trim(), DT_FMT);
@@ -1286,7 +1409,7 @@ public class JobTrackerGUI extends JFrame {
 
     private void refreshRemoveEventsList() {
         try {
-            requireLogin();
+            if (!requireLogin()) return;
             removeEventsModel.clear();
             Vector<Event> monthEvents = tracker.listEvents(activeUser, calMonth, calYear);
             ArrayList<Event> filtered = new ArrayList<>();
@@ -1303,7 +1426,7 @@ public class JobTrackerGUI extends JFrame {
     }
 
     private void removeSelectedEvent() {
-        try { requireLogin(); } catch (Exception ex) { return; }
+        if (!requireLogin()) return;
         Event ev = removeEventsList.getSelectedValue();
         if (ev == null) {
             JOptionPane.showMessageDialog(this, "Select an event first.", "Info", JOptionPane.INFORMATION_MESSAGE);
@@ -1361,7 +1484,7 @@ public class JobTrackerGUI extends JFrame {
 
     private void refreshEditEventsList() {
         try {
-            requireLogin();
+            if (!requireLogin()) return;
             editEventsModel.clear();
             Vector<Event> monthEvents = tracker.listEvents(activeUser, calMonth, calYear);
             ArrayList<Event> filtered = new ArrayList<>();
@@ -1390,7 +1513,7 @@ public class JobTrackerGUI extends JFrame {
     }
 
     private void submitEditEvent() {
-        try { requireLogin(); } catch (Exception ex) { return; }
+        if (!requireLogin()) return;
         Event ev = editEventsList.getSelectedValue();
         if (ev == null) {
             JOptionPane.showMessageDialog(this, "Select an event first.", "Info", JOptionPane.INFORMATION_MESSAGE);
@@ -1465,7 +1588,7 @@ public class JobTrackerGUI extends JFrame {
 
     private void refreshNotifs() {
         try {
-            requireLogin();
+            if (!requireLogin()) return;
             notifsModel.clear();
             List<NotifyAbout> list = tracker.getNotificationsToDisplay(activeUser);
             for (NotifyAbout n : list) notifsModel.addElement(n);
@@ -1477,7 +1600,7 @@ public class JobTrackerGUI extends JFrame {
 
     private void markNotifSeen() {
         try {
-            requireLogin();
+            if (!requireLogin()) return;
             NotifyAbout n = notifsList.getSelectedValue();
             if (n == null) return;
             tracker.markNotificationSeen(activeUser, n);
@@ -1489,7 +1612,7 @@ public class JobTrackerGUI extends JFrame {
 
     private void markAllNotifsSeen() {
         try {
-            requireLogin();
+            if (!requireLogin()) return;
             tracker.markAllNotificationsSeen(activeUser);
             refreshNotifs();
         } catch (Exception ex) {
@@ -1500,7 +1623,6 @@ public class JobTrackerGUI extends JFrame {
     // =========================
     // PROCESSES
     // =========================
-
     private JPanel buildProcessesCard() {
         JPanel root = new JPanel(new BorderLayout());
         root.add(header("My Processes", true, true), BorderLayout.NORTH);
@@ -1551,7 +1673,7 @@ public class JobTrackerGUI extends JFrame {
 
     private void refreshProcesses() {
         try {
-            requireLogin();
+            if (!requireLogin()) return;
             appsModel.clear();
             Vector<ApplyFor> all = tracker.listApplications(activeUser);
             for (ApplyFor a : all) appsModel.addElement(a);
@@ -1588,7 +1710,6 @@ public class JobTrackerGUI extends JFrame {
         pdStatusVal = new JLabel("-");
         pdPublishDateVal = new JLabel("-");
 
-
         addRow(grid, gc, "Position ID:", pdPositionIdVal);
         addRow(grid, gc, "Publish date:", pdPublishDateVal);
         addRow(grid, gc, "Title:", pdTitleVal);
@@ -1618,16 +1739,20 @@ public class JobTrackerGUI extends JFrame {
         pdViewLastContactBtn.addActionListener(e -> showLastContactDialogForSelectedProcess());
         pdLogContactBtn.addActionListener(e -> openLogCommunicationDialogForSelectedProcess());
 
-        JPanel commBtnsRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        JPanel commBtnsRow = new JPanel();
         commBtnsRow.setOpaque(false);
+        commBtnsRow.setLayout(new BoxLayout(commBtnsRow, BoxLayout.X_AXIS));
+
+        commBtnsRow.add(Box.createHorizontalGlue());
         commBtnsRow.add(pdViewLastContactBtn);
+        commBtnsRow.add(Box.createHorizontalStrut(8));
         commBtnsRow.add(pdLogContactBtn);
 
         addRow(grid, gc, "", commBtnsRow);
         //Position Status + Toggle Button
         pdToggleStatusBtn = new JButton("Toggle Status");
         pdToggleStatusBtn.addActionListener(e -> {
-            try { requireLogin(); } catch (Exception ex) { return; }
+            if (!requireLogin()) return;
             if (selectedProcessApp == null || selectedProcessApp.getPosition() == null) return;
 
             String pid = selectedProcessApp.getPosition().getPositionID();
@@ -1697,17 +1822,16 @@ public class JobTrackerGUI extends JFrame {
 
         JButton saveBtn = new JButton("Save Changes");
         saveBtn.addActionListener(e -> {
-            try { requireLogin(); } catch (Exception ex) { return; }
+            if (!requireLogin()) return;
             if (selectedProcessApp == null || selectedProcessApp.getPosition() == null) return;
-
             String pid = selectedProcessApp.getPosition().getPositionID();
             ApplicationStage newStage = (ApplicationStage) pdStageCB.getSelectedItem();
             String newSource = pdSourceTF.getText();
             String note = pdAddNoteTA.getText();
-
             try {
                 tracker.updateProcessFromDetailsForm(activeUser, pid, newStage, newSource, note);
                 pdAddNoteTA.setText("");
+                pdSourceTF.setText("");
                 refreshProcesses();
                 refreshProcessDetails();
                 showCard(C_PROCESSES, false);
@@ -1719,7 +1843,7 @@ public class JobTrackerGUI extends JFrame {
 
         JButton withdrawBtn = new JButton("Withdraw");
         withdrawBtn.addActionListener(e -> {
-            try { requireLogin(); } catch (Exception ex) { return; }
+            if (!requireLogin()) return;
             if (selectedProcessApp == null || selectedProcessApp.getPosition() == null) return;
             tracker.withdrawApplication(activeUser, selectedProcessApp.getPosition().getPositionID());
             refreshProcesses();
@@ -1727,7 +1851,7 @@ public class JobTrackerGUI extends JFrame {
         });
         JButton removeBtn = new JButton("Remove Process");
         removeBtn.addActionListener(e -> {
-            try { requireLogin(); } catch (Exception ex) { return; }
+            if (!requireLogin()) return;
             if (selectedProcessApp == null || selectedProcessApp.getPosition() == null) return;
             int ok = JOptionPane.showConfirmDialog(this, "Remove this process?", "Remove", JOptionPane.OK_CANCEL_OPTION);
             if (ok != JOptionPane.OK_OPTION) return;
@@ -1750,18 +1874,14 @@ public class JobTrackerGUI extends JFrame {
     }
 
     private void showLastContactDialogForSelectedProcess() {
-        try {
-            requireLogin();
-        } catch (Exception ex) {
-            return;
-        }
+        if (!requireLogin()) return;
         if (selectedProcessApp == null || selectedProcessApp.getPosition() == null) return;
 
         String pid = selectedProcessApp.getPosition().getPositionID();
         String info = tracker.getLastContactInfoForPosition(activeUser, pid);
         long days = tracker.daysSinceLastContactForPosition(activeUser, pid);
 
-        //If there is no communication - Not available
+        //If there is no communication - not available
         String msg;
         if (info == null || info.trim().isEmpty() || days < 0) {
             msg = "Not available";
@@ -1777,7 +1897,7 @@ public class JobTrackerGUI extends JFrame {
     }
 
     private void openLogCommunicationDialogForSelectedProcess() {
-        try { requireLogin(); } catch (Exception ex) { return; }
+        if (!requireLogin()) return;
         if (selectedProcessApp == null || selectedProcessApp.getPosition() == null) return;
 
         String pid = selectedProcessApp.getPosition().getPositionID();
@@ -1799,6 +1919,7 @@ public class JobTrackerGUI extends JFrame {
         JComboBox<String> methodCB = new JComboBox<>(new String[]{"Email", "Phone", "LinkedIn", "WhatsApp", "Meeting", "Other"
         });
         JTextField subjectTF = new JTextField(26);
+        JTextField WhenContactedTF = new JTextField(LocalDateTime.now().format(DT_FMT), 26);
 
         JPanel p = new JPanel(new GridBagLayout());
         GridBagConstraints gc = gb();
@@ -1806,12 +1927,24 @@ public class JobTrackerGUI extends JFrame {
 
         addRow(p, gc, "Method:", methodCB);
         addRow(p, gc, "Subject / Summary:", subjectTF);
+        addRow(p, gc, "When (yyyy-MM-dd HH:mm):", WhenContactedTF);
         int res = JOptionPane.showConfirmDialog(this, p, "Log Communication", JOptionPane.OK_CANCEL_OPTION);
         if (res != JOptionPane.OK_OPTION) return;
         String method = Objects.toString(methodCB.getSelectedItem(), "Other");
         String subject = subjectTF.getText();
+
+        LocalDateTime when;
         try {
-            tracker.logLastContactForPosition(activeUser, pid, method, subject);
+            String txt = WhenContactedTF.getText().trim();
+            when = txt.isEmpty() ? LocalDateTime.now() : LocalDateTime.parse(txt, DT_FMT);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                    "Invalid date/time. Use format yyyy-MM-dd HH:mm (example: 2026-01-03 10:20)",
+                    "Log Communication Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        try {
+            tracker.logLastContactForPosition(activeUser, pid, method, subject, when); // חדש
             log("Communication logged for position: " + pid);
 
             refreshProcessDetails();
@@ -1822,9 +1955,7 @@ public class JobTrackerGUI extends JFrame {
     }
 
     private void openCompanyDetailsForSelectedProcess() {
-        try { requireLogin(); } catch (Exception ex) {
-            return;
-        }
+        if (!requireLogin()) return;
         if (selectedProcessApp == null || selectedProcessApp.getPosition() == null) return;
         String pid = selectedProcessApp.getPosition().getPositionID();
         String txt = tracker.buildCompanyDetailsTextForPosition(pid);
@@ -1840,7 +1971,7 @@ public class JobTrackerGUI extends JFrame {
 
     private void refreshProcessDetails() {
         try {
-            requireLogin();
+            if (!requireLogin()) return;
             if (selectedProcessApp == null || selectedProcessApp.getPosition() == null) return;
 
             JobPosition p = selectedProcessApp.getPosition();
@@ -1870,7 +2001,7 @@ public class JobTrackerGUI extends JFrame {
             //Last Contact
             String info = tracker.getLastContactInfoForPosition(activeUser, pid);
             long days = tracker.daysSinceLastContactForPosition(activeUser, pid);
-            //If there is no communication - Not available
+            //If there is no communication - not available
             if (info == null || info.trim().isEmpty() || days < 0) {
                 pdLastContactVal.setText("Not available");
                 if (pdViewLastContactBtn != null) pdViewLastContactBtn.setEnabled(false);
@@ -1898,7 +2029,7 @@ public class JobTrackerGUI extends JFrame {
             pdNotesTA.setText(safe(selectedProcessApp.getNotes()));
 
             pdStageCB.setSelectedItem(selectedProcessApp.getStage());
-            pdSourceTF.setText(safe(selectedProcessApp.getSource()));
+            pdSourceTF.setText("");
 
         } catch (Exception ex) {
             log("refreshProcessDetails failed: " + ex.getMessage());
@@ -1906,7 +2037,7 @@ public class JobTrackerGUI extends JFrame {
     }
 
     private void openAddOrEditContactForSelectedProcess() {
-        try { requireLogin(); } catch (Exception ex) { return; }
+        if (!requireLogin()) return;
         if (selectedProcessApp == null || selectedProcessApp.getPosition() == null) return;
 
         String pid = selectedProcessApp.getPosition().getPositionID();
@@ -2011,7 +2142,7 @@ public class JobTrackerGUI extends JFrame {
 
     private void refreshStats() {
         try {
-            requireLogin();
+            if (!requireLogin()) return;
             statsHeader.setText("Statistics for " + safe(activeUser.getFullName()));
             //Full details
             String full = tracker.buildUserStatistics(activeUser);
@@ -2114,7 +2245,6 @@ public class JobTrackerGUI extends JFrame {
         return (s == null) ? "" : s;
     }
 
-
     // ========================= for stats chart =========================
     private static class WeekBarChartPanel extends JPanel {
         private java.util.List<String> labels = java.util.List.of();
@@ -2178,10 +2308,321 @@ public class JobTrackerGUI extends JFrame {
                 } else {
                     g.drawString(vs, x, Math.max(12, y - 4));
                 }
-                // label
+                //label
                 String lab = labels.get(i);
                 g.drawString(lab, x, baseY + 14);
             }
+        }
+    }
+
+    // ======= Menubar =======
+    private MenuBar buildAwtMenuBar() {
+        MenuBar mb = new MenuBar();
+
+        //File
+        Menu mFile = new Menu("File");
+
+        MenuItem miExit = new MenuItem("Exit");
+        miExit.addActionListener(e -> exitApp());
+        mFile.add(miExit);
+
+        Menu mExportStats = new Menu("Export Statistics");
+
+        MenuItem miExportTxt = new MenuItem("Export as TXT...");
+        miExportTxt.addActionListener(e -> exportStatisticsAsTxt());
+
+        MenuItem miExportHtml = new MenuItem("Export as HTML...");
+        miExportHtml.addActionListener(e -> exportStatisticsAsHtml());
+
+        mExportStats.add(miExportTxt);
+        mExportStats.add(miExportHtml);
+
+        mFile.add(mExportStats);
+        mFile.addSeparator();
+
+        MenuItem miLogout = new MenuItem("Logout");
+        miLogout.addActionListener(e -> doLogout());
+        mFile.add(miLogout);
+
+        //Edit
+        Menu mEdit = new Menu("Edit");
+
+        MenuItem miClearSel = new MenuItem("Clear selections");
+        miClearSel.addActionListener(e -> clearSelections());
+        mEdit.add(miClearSel);
+
+        MenuItem miResetForm = new MenuItem("Reset current form");
+        miResetForm.addActionListener(e -> resetCurrentForm());
+        mEdit.add(miResetForm);
+
+        //View
+        Menu mView = new Menu("View");
+
+        CheckboxMenuItem miToggleLog = new CheckboxMenuItem("Show debug log");
+        miToggleLog.addItemListener(e -> setLogVisible(miToggleLog.getState()));
+        mView.add(miToggleLog);
+
+        //Help
+        Menu mHelp = new Menu("Help");
+
+        MenuItem miAbout = new MenuItem("About");
+        miAbout.addActionListener(e -> showAbout());
+        mHelp.add(miAbout);
+
+        MenuItem miInstr = new MenuItem("Short instructions");
+        miInstr.addActionListener(e -> showInstructions());
+        mHelp.add(miInstr);
+
+        //Go to
+        Menu mGo = new Menu("Go to");
+
+        MenuItem goMenu = new MenuItem("Main Menu");
+        goMenu.addActionListener(e -> {
+            if (!requireLogin()) return;
+            showCard(C_MENU, false);
+        });
+        mGo.add(goMenu);
+
+        MenuItem goProfile = new MenuItem("Personal Area");
+        goProfile.addActionListener(e -> {
+            if (!requireLogin()) return;
+            refreshProfileView();
+            showCard(C_PROFILE);
+        });
+        mGo.add(goProfile);
+
+        MenuItem goDocs = new MenuItem("My Documents");
+        goDocs.addActionListener(e -> {
+           if (!requireLogin()) return;
+           refreshDocs();
+           showCard(C_DOCS);
+        });
+        mGo.add(goDocs);
+
+        MenuItem goAddApp = new MenuItem("Add Application");
+        goAddApp.addActionListener(e -> {
+            if (!requireLogin()) return;
+            clearAddAppForm();
+            showCard(C_ADD_APP);
+        });
+        mGo.add(goAddApp);
+
+        MenuItem goEvents = new MenuItem("Events Calendar");
+        goEvents.addActionListener(e -> {
+            if (!requireLogin()) return;
+            refreshCalendar();
+            showCard(C_EVENTS);
+        });
+        mGo.add(goEvents);
+
+        MenuItem goNotifs = new MenuItem("My Notifications");
+        goNotifs.addActionListener(e -> {
+            if (!requireLogin()) return;
+            refreshNotifs();
+            showCard(C_NOTIFS);
+        });
+        mGo.add(goNotifs);
+
+        MenuItem goProc = new MenuItem("My Processes");
+        goProc.addActionListener(e -> {
+            if (!requireLogin()) return;
+            refreshProcesses();
+            showCard(C_PROCESSES);
+        });
+        mGo.add(goProc);
+
+        MenuItem goStats = new MenuItem("Statistics");
+        goStats.addActionListener(e -> {
+            if (!requireLogin()) return;
+            refreshStats();
+            showCard(C_STATS);
+        });
+        mGo.add(goStats);
+
+        mb.add(mFile);
+        mb.add(mEdit);
+        mb.add(mView);
+        mb.add(mHelp);
+        mb.add(mGo);
+
+        return mb;
+    }
+
+    private void exitApp() {
+        int ok = JOptionPane.showConfirmDialog(this, "Exit the application?", "Exit", JOptionPane.OK_CANCEL_OPTION);
+        if (ok == JOptionPane.OK_OPTION) System.exit(0);
+    }
+
+    private void setLogVisible(boolean show) {
+        logShown = show;
+        if (logWrap != null) {
+            logWrap.setVisible(show);
+            revalidate();
+            repaint();
+        }
+    }
+
+    private void clearSelections() {
+        if (appsList != null) appsList.clearSelection();
+        if (notifsList != null) notifsList.clearSelection();
+        if (removeEventsList != null) removeEventsList.clearSelection();
+        if (editEventsList != null) editEventsList.clearSelection();
+        log("Selections cleared.");
+    }
+
+    private void resetCurrentForm() {
+        if (currentCard == null) return;
+        switch (currentCard) {
+            case C_LOGIN -> {
+                if (loginEmailTF != null) loginEmailTF.setText("");
+                if (loginPassPF != null) loginPassPF.setText("");
+            }
+            case C_REGISTER -> {
+                if (regFullNameTF != null) regFullNameTF.setText("");
+                if (regEmailTF != null) regEmailTF.setText("");
+                if (regPassPF != null) regPassPF.setText("");
+                if (regPhoneTF != null) regPhoneTF.setText("");
+                if (regFieldTF != null) regFieldTF.setText("");
+            }
+            case C_ADD_APP -> clearAddAppForm();
+            case C_ADD_EVENT -> clearAddEventForm();
+            case C_EDIT_EVENT -> {
+                if (editEventTitleTF != null) editEventTitleTF.setText("");
+                if (editEventDateTimeTF != null) editEventDateTimeTF.setText("");
+                if (editEventDurationTF != null) editEventDurationTF.setText("");
+                if (editEventNotesTA != null) editEventNotesTA.setText("");
+                if (editEventTypeCB != null && editEventTypeCB.getItemCount() > 0) editEventTypeCB.setSelectedIndex(0);
+            }
+            case C_PROCESS_DETAILS -> {
+                if (pdSourceTF != null) pdSourceTF.setText("");
+                if (pdAddNoteTA != null) pdAddNoteTA.setText("");
+                if (pdStageCB != null && selectedProcessApp != null) pdStageCB.setSelectedItem(selectedProcessApp.getStage());
+            }
+            default -> {
+                JOptionPane.showMessageDialog(this, "No resettable form on this screen.", "Reset Form", JOptionPane.INFORMATION_MESSAGE);
+            }
+        }
+        log("Current form reset.");
+    }
+
+    private void showAbout() {
+        JOptionPane.showMessageDialog(this,
+                "JobTracker System\nFinal assignment in Software Engineering course" +
+                        "\nThis project's goal is to help users track their job application processes.",
+                "About", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void showInstructions() {
+        String txt =
+                "Quick guide:\n" +
+                        "- Use Main Menu to navigate.\n" +
+                        "- Documents: add/remove/open files & links.\n" +
+                        "- Events: double-click a day to view events.\n" +
+                        "- Processes: double-click a process to open details.\n";
+        JTextArea ta = new JTextArea(txt, 10, 40);
+        ta.setEditable(false);
+        ta.setLineWrap(true);
+        ta.setWrapStyleWord(true);
+        JOptionPane.showMessageDialog(this, new JScrollPane(ta), "Short instructions", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void exportStatisticsAsTxt() {
+        if (!requireLogin()) return;
+        String content;
+        try {
+            refreshStats();
+            content = tracker.buildUserStatistics(activeUser);
+            String stage = tracker.formatStageBreakdown(activeUser);
+            stage = (stage == null) ? "" : stage.trim();
+            if (!content.contains("Stage breakdown:")) {
+                content += "\n\n====================\nStage breakdown:\n";
+                content += stage.isBlank() ? "(no data)\n" : (stage + "\n");
+            }            if (content == null || content.trim().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No statistics to export.", "Export", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Failed to build statistics: " + ex.getMessage(), "Export", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        FileDialog fd = new FileDialog(this, "Save statistics as TXT", FileDialog.SAVE);
+        fd.setFile("statistics.txt");
+        fd.setVisible(true);
+
+        String dir = fd.getDirectory();
+        String file = fd.getFile();
+        if (dir == null || file == null) return;
+
+        java.io.File out = new java.io.File(dir, file);
+        try {
+            java.nio.file.Files.writeString(out.toPath(), content, java.nio.charset.StandardCharsets.UTF_8);
+            log("Statistics exported to TXT: " + out.getAbsolutePath());
+            JOptionPane.showMessageDialog(this, "Exported:\n" + out.getAbsolutePath(), "Export", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Export failed: " + ex.getMessage(), "Export", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void exportStatisticsAsHtml() {
+        if (!requireLogin()) return;
+        String full;
+        try {
+            refreshStats();
+            full = tracker.buildUserStatistics(activeUser);
+            if (full == null || full.trim().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No statistics to export.", "Export", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Failed to build statistics: " + ex.getMessage(), "Export", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        String stage = "";
+        try {
+            stage = tracker.formatStageBreakdown(activeUser);
+            stage = (stage == null) ? "" : stage.trim();
+        } catch (Exception ignored) {}
+
+        String stageHtml = stage
+                .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                .replace("\n", "<br>");
+
+        String extraStageSection = "";
+        if (!full.contains("Stage breakdown:")) {
+            extraStageSection =
+                    "<hr>" +
+                            "<h3>Stage breakdown</h3>" +
+                            "<div style='font-family:SansSerif; font-size:12px;'>" +
+                            (stage.isBlank() ? "(no data)" : stageHtml) +
+                            "</div>";
+        }
+        String body = toBoldDetailsHtml(full).replaceFirst("(?i)<html>\\s*<body", "<html><body");
+        String html =
+                "<!DOCTYPE html>\n" +
+                        "<html>\n<head>\n<meta charset=\"UTF-8\">\n" +
+                        "<title>JobTracker - Statistics</title>\n</head>\n<body>\n" +
+                        "<h2>Statistics for " + safe(activeUser.getFullName()) + "</h2>\n" +
+                        body
+                                .replaceFirst("(?i)^\\s*<html>\\s*<body[^>]*>", "")
+                                .replaceFirst("(?i)</body>\\s*</html>\\s*$", "") +
+                        extraStageSection +
+                        "\n</body>\n</html>\n";
+
+        FileDialog fd = new FileDialog(this, "Save statistics as HTML", FileDialog.SAVE);
+        fd.setFile("statistics.html");
+        fd.setVisible(true);
+
+        String dir = fd.getDirectory();
+        String file = fd.getFile();
+        if (dir == null || file == null) return;
+
+        java.io.File out = new java.io.File(dir, file);
+        try {
+            java.nio.file.Files.writeString(out.toPath(), html, java.nio.charset.StandardCharsets.UTF_8);
+            log("Statistics exported to HTML: " + out.getAbsolutePath());
+            JOptionPane.showMessageDialog(this, "Exported:\n" + out.getAbsolutePath(), "Export", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Export failed: " + ex.getMessage(), "Export", JOptionPane.ERROR_MESSAGE);
         }
     }
 }

@@ -3,8 +3,12 @@ package Model;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-public class NotifyAbout
-{
+
+//This class was initially designed to notify users about upcoming events (24 hours prior).
+//But, later on i decided to extend its functionality to include system notifications without specific events.
+//This change was in order to "Notify about" more system related things.
+//Obviously, still connect between user and event but also connect between the user and the system!
+public class NotifyAbout {
     private UserProfile user;
     private Event event;
     private LocalDateTime createdAt;

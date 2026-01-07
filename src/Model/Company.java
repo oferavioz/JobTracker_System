@@ -16,12 +16,6 @@ public class Company
         setWebsiteURL(websiteURL);
         this.branches = new ArrayList<>();
     }
-    public Company(String companyName, String industry, String websiteURL, ArrayList<String> branches) {
-        setCompanyName(companyName);
-        setIndustry(industry);
-        setWebsiteURL(websiteURL);
-        setBranches(branches);
-    }
 
     // Setters
     public void setCompanyName(String companyName) {

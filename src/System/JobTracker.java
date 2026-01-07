@@ -5,7 +5,6 @@ import Model.*;
 import java.io.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 public class JobTracker {
@@ -341,6 +340,41 @@ public class JobTracker {
         return out.toString();
     }
 
+    public ArrayList<String> getAllPostingChannelsForCompany(Company company) {
+        ArrayList<String> result = new ArrayList<>();
+        if (company == null || company.getCompanyName() == null) {
+            return result;
+        }
+        String cname = norm(company.getCompanyName());
+        if (cname == null || cname.isEmpty()) {
+            return result;
+        }
+        for (Publishes pub : publishedJobs) {
+            if (pub == null || pub.getCompany() == null) continue;
+            String pubCompanyName = pub.getCompany().getCompanyName();
+            if (pubCompanyName == null || !pubCompanyName.equalsIgnoreCase(cname)) continue;
+            String ch = pub.getPostingChannel();
+            if (ch == null) continue;
+            ch = norm(ch);
+            if (ch == null || ch.isEmpty()) continue;
+            // avoid duplicates (case-insensitive) without Map/Set
+            boolean exists = false;
+            for (String existing : result) {
+                if (existing != null && existing.equalsIgnoreCase(ch)) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) result.add(ch);
+        }
+        return result;
+    }
+
+    public String getAllPostingChannelsForCompanyText(Company company) {
+        ArrayList<String> channels = getAllPostingChannelsForCompany(company);
+        return channels.isEmpty() ? "N/A" : String.join(", ", channels);
+    }
+
     public String buildCompanyDetailsTextForPosition(String positionID) {
         String pid = norm(positionID);
         if (pid == null || pid.isEmpty()) {
@@ -354,7 +388,7 @@ public class JobTracker {
         String website  = (c.getWebsiteURL() == null || c.getWebsiteURL().isBlank()) ? "N/A" : c.getWebsiteURL().trim();
         List<String> branches = getAllBranchesForCompany(c);
         String brText = branches.isEmpty() ? "(no branches)" : String.join(", ", branches);
-        String channel = getPostingChannelForPosition(pid);
+        String channel = getAllPostingChannelsForCompanyText(c);
         String chText = (channel == null || channel.isBlank()) ? "N/A" : channel.trim();
         return "Company: " + c.getCompanyName() + "\nIndustry: " + industry + "\nWebsite: " + website
                 + "\nBranches: " + brText + "\nPosting channels: " + chText;
@@ -364,6 +398,14 @@ public class JobTracker {
     public void saveCompaniesToFile(String filePath) throws IOException {
         String path = norm(filePath);
         if (path == null || path.isEmpty()) throw new IllegalArgumentException("File path cannot be empty.");
+
+        File outFile = new File(path);
+        File parent = outFile.getParentFile();
+        if (parent != null && !parent.exists()) {
+            if (!parent.mkdirs()) {
+                throw new IOException("Failed to create directories for path: " + parent.getAbsolutePath());
+            }
+        }
 
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(path))) {
             for (Company c : companies) {
@@ -542,11 +584,6 @@ public class JobTracker {
         return findCompanyForPosition(positionID);
     }
 
-    public String getPostingChannelForPosition(String positionID) {
-        Publishes p = findPublishByPositionId(positionID);
-        return (p == null) ? null : p.getPostingChannel();
-    }
-
     // =========================================================
     // ==================== Contacts Methods ====================
     // =========================================================
@@ -627,7 +664,7 @@ public class JobTracker {
         return findContact(user, comp.getCompanyName(), name);
     }
 
-    public synchronized Contact logLastContactForPosition(UserProfile user, String positionID, String method, String subject) {
+    public synchronized Contact logLastContactForPosition(UserProfile user, String positionID, String method, String subject, LocalDateTime when) {
         if (user == null) {
             throw new IllegalArgumentException("User cannot be null.");
         }
@@ -639,7 +676,7 @@ public class JobTracker {
         if (c == null) {
             throw new IllegalArgumentException("No contact is linked to this position.");
         }
-        c.logContact(method, subject); // updates method+subject and sets date
+        c.logContact(method, subject, when); //updates method+subject and sets date
         return c;
     }
 
@@ -889,23 +926,6 @@ public class JobTracker {
         return out;
     }
 
-    public Vector<Event> listEventsForDay(UserProfile user, int day, int month, int year) {
-        Vector<Event> out = new Vector<>();
-        if (user == null) return out;
-
-        for (Event e : events) {
-            if (e == null || e.getDateTime() == null) continue;
-            if (!isUserEvent(user, e)) continue;
-
-            if (e.getDateTime().getYear() == year &&
-                    e.getDateTime().getMonthValue() == month &&
-                    e.getDateTime().getDayOfMonth() == day) {
-                out.add(e);
-            }
-        }
-        return out;
-    }
-
     public synchronized Event getUserEventById(UserProfile user, int eventId) {
         if (user == null || eventId <= 0) return null;
         for (Event e : events) {
@@ -1135,15 +1155,6 @@ public class JobTracker {
                 || stage == ApplicationStage.OFFER;
     }
 
-    public Event buildEventFromForm(String type, String title, String dateTimeText, String durationText, String notes) {
-        String t = (type == null || type.trim().isEmpty()) ? "Other" : type.trim();
-        String ttl = (title == null) ? "" : title.trim();
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-        LocalDateTime dt = LocalDateTime.parse(dateTimeText.trim(), fmt);
-        int dur = Integer.parseInt(durationText.trim());
-        return new Event(t, ttl, dt, dur, notes);
-    }
-
     public boolean updateStoredDocumentDetails(UserProfile user, String oldName, String newName, String newTarget, String newNote, boolean makePrimary) {
         Stores s = getStoredDocument(user, oldName);
         if (s == null || s.getDocument() == null) return false;
@@ -1191,6 +1202,11 @@ public class JobTracker {
         String os = norm(app.getSource());
         if (ns != null && !ns.isEmpty() && (os == null || !ns.equalsIgnoreCase(os))) {
             app.setSource(ns);
+            // update posting channel for this position too
+            Publishes pub = findPublishByPositionId(pid);
+            if (pub != null) {
+                pub.updatePostingChannel(ns);
+        }
             changed = true;
         }
         //note
@@ -1201,4 +1217,5 @@ public class JobTracker {
         }
         return changed;
     }
-    }
+
+}
