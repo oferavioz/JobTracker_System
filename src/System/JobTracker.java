@@ -3,6 +3,9 @@ package System;
 import Model.*;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -202,6 +205,19 @@ public class JobTracker {
         return fresh;
     }
 
+    // those methods are used to resolve data directory and files,
+    // so it will work no matter where the project is running from
+    public static Path resolveDataDir() {
+        Path data = Paths.get(System.getProperty("user.dir")).resolve("data").normalize().toAbsolutePath();
+        try { Files.createDirectories(data); } catch (Exception ignored) {}
+        return data;
+    }
+
+    public static Path dataFile(String fileName) {
+        if (fileName == null) throw new IllegalArgumentException("fileName cannot be null");
+        return resolveDataDir().resolve(fileName).normalize().toAbsolutePath();
+    }
+
     // =========================================================
     // ==================== User Methods =======================
     // =========================================================
@@ -395,19 +411,11 @@ public class JobTracker {
     }
 
     //Save + Load Companies to/from file
-    public void saveCompaniesToFile(String filePath) throws IOException {
-        String path = norm(filePath);
-        if (path == null || path.isEmpty()) throw new IllegalArgumentException("File path cannot be empty.");
+    public void saveCompaniesToFile(Path file) throws IOException {
+        if (file == null) throw new IllegalArgumentException("file cannot be null");
+        Files.createDirectories(file.getParent());
 
-        File outFile = new File(path);
-        File parent = outFile.getParentFile();
-        if (parent != null && !parent.exists()) {
-            if (!parent.mkdirs()) {
-                throw new IOException("Failed to create directories for path: " + parent.getAbsolutePath());
-            }
-        }
-
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(path))) {
+        try (BufferedWriter bw = Files.newBufferedWriter(file)) {
             for (Company c : companies) {
                 if (c == null) continue;
                 bw.write(c.toFileLine());
@@ -416,14 +424,11 @@ public class JobTracker {
         }
     }
 
-    public void loadCompaniesFromFile(String filePath) throws IOException {
-        String path = norm(filePath);
-        if (path == null || path.isEmpty()) throw new IllegalArgumentException("File path cannot be empty.");
+    public void loadCompaniesFromFile(Path file) throws IOException {
+        if (file == null) throw new IllegalArgumentException("file cannot be null");
+        if (!Files.exists(file)) return;
 
-        File f = new File(path);
-        if (!f.exists()) return;
-
-        try (BufferedReader br = new BufferedReader(new FileReader(f))) {
+        try (BufferedReader br = Files.newBufferedReader(file)) {
             String line;
             while ((line = br.readLine()) != null) {
                 if (line.trim().isEmpty()) continue;
@@ -772,27 +777,9 @@ public class JobTracker {
         Stores target = findStoreByDocName(user, docName);
         if (target == null) return false;
 
-        for (Stores s : storedDocuments) {
-            if (s != null && s.getUser() != null && sameUser(s.getUser(), user)) {
-                s.unmarkAsPrimary();
-            }
-        }
+        //allow multiple primaries
         target.markAsPrimary();
         return true;
-    }
-
-    public boolean unmarkPrimaryDocument(UserProfile user) {
-        if (user == null) return false;
-
-        boolean changed = false;
-        for (Stores s : storedDocuments) {
-            if (s == null || s.getUser() == null) continue;
-            if (sameUser(s.getUser(), user) && s.isPrimary()) {
-                s.unmarkAsPrimary();
-                changed = true;
-            }
-        }
-        return changed;
     }
 
     public boolean renameDocument(UserProfile user, String oldName, String newName) {
@@ -1149,6 +1136,7 @@ public class JobTracker {
 
 
     // ===== Helpers exposed for GUI =====
+
     public boolean isFinalStage(ApplicationStage stage) {
         return stage == ApplicationStage.REJECTED
                 || stage == ApplicationStage.WITHDRAWN
@@ -1174,8 +1162,12 @@ public class JobTracker {
         if (newNote != null) {
             updateDocumentNote(user, currentName, newNote);
         }
-        if (makePrimary) markDocumentAsPrimary(user, currentName);
-        else unmarkPrimaryDocument(user);
+        if (makePrimary) {
+            markDocumentAsPrimary(user, currentName);
+        } else {
+            updated.unmarkAsPrimary();
+        }
+        // else: do nothing (don't unmark others)
         return true;
     }
 

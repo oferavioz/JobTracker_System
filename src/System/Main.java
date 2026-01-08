@@ -1,29 +1,37 @@
 // Ofer Avioz, 212052385
-// This is the main class in the program.
-// This class initializes all the system objects,
-// the general manager class, and the GUI class with its components.
-// I hope the project meets the requirements and works well, Thank you!
-// Enjoy :)
 
 // --- Project check list ---
 // Base objects: UserProfile, Company, JobPosition, Event, Document
 // Association classes: ApplyFor, Contact, NotifyAbout, Publishes, Stores
 // Threads: AddApplicationTask, AddEventThread
 // System controller class: JobTracker (all logic + data management + a little GUI support)
-// External files: Company data (save and load), Documents (load only, saved for the user)
+// External files: Company data (save and load), Documents (load only, saved for the user), Statistics export (txt + HTML)
 // GUI class and components: JobTrackerGUI ->
-// AWT requirements: button, Label, Checkbox, list, Choice + Menbar, menu, menuItem, popupMenu (all in documents + menubar)
+// AWT requirements: button, Label, Checkbox, list, Choice + Menubar, menu, menuItem, popupMenu (all in documents + menubar)
+// Everything else is implemented by swing components (more flexible and comfortable to use)..
+
+// IN ADDITION - I built a demo class that automatically demonstrates the program features step by step.
+// really enjoyed building it, used AI help to do this, hope you like it :)
+
+
+// This is the main class in the program.
+// This class initializes all the system objects,
+// the general manager class, and the GUI class with its components.
+// I hope the project meets the requirements and works well, Thank you!
+// Enjoy :)
+
 
 package System;
 import Model.*;
 import javax.swing.*;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 
 public class Main {
 
-    private static final String COMPANIES_FILE = "data/companies.txt";
+    private static final Path COMPANIES_FILE = JobTracker.dataFile("companies.txt");
 
     public static void main(String[] args) {
 
@@ -51,6 +59,7 @@ public class Main {
             JobPosition p1 = new JobPosition("P11111", "Junior Dev", "Hi-Tech", "Kfar Saba", "Full-time", "Active", "Develop and maintain software applications.");
             ApplyFor app1 = tracker.addApplication(demo, p1, c1, LocalDate.of(2025,10,1), "LinkedIn", "Looking forward to this opportunity!");
             app1.setDateApplied(LocalDateTime.now().minusDays(15));
+            tracker.updateApplicationStage(demo, p1.getPositionID(), ApplicationStage.HOME_ASSIGNMENT);
 
             Company c2 = new Company("Intel", "Hi-Tech", "https://www.intel.com/content/www/us/en/homepage.html");
             JobPosition p2 = new JobPosition("P22222", "SW Engineer student", "Hi-Tech", "Tel Aviv", "Intern", "Active", "Software development internship.");
@@ -66,32 +75,53 @@ public class Main {
             tracker.addOrEditContactForPosition(demo, p3.getPositionID(), "Lior Azulay", "Recruiter", "lioraz@gmail.com", "052-1112222");
             tracker.logLastContactForPosition(demo, p3.getPositionID(), "Phone", "Initial phone screening", LocalDateTime.of(2026,1,2,12,15));
 
+            JobPosition p4 = new JobPosition("P44444", "Frontend Developer", "Hi-Tech", "Haifa", "Full-time", "Active", "Work on scalable frontend systems.");
+            ApplyFor app4 = tracker.addApplication(demo, p4, c2, LocalDate.of(2026,1,1), "Company Website", "");
+            app4.setDateApplied(LocalDateTime.now().minusDays(3));
+            tracker.addOrEditContactForPosition(demo, p4.getPositionID(), "Dana Levi", "Recruiter", "DanaL@walla.com", "053-3334444");
+            tracker.logLastContactForPosition(demo, p4.getPositionID(), "Phone", "Initial phone screening", LocalDateTime.now().minusDays(1));
+            tracker.updateApplicationStage(demo, p4.getPositionID(), ApplicationStage.PHONE_CALL);
+
             tracker.uploadDocument(demo, "LinkedIn Profile", "URL", "https://www.linkedin.com/in/oferavioz/", "Profile link on LinkedIn", true);
-            tracker.uploadDocument(demo, "English CV", "File", "/Users/ofera/Desktop/Ofer Avioz - CV + gradesheet.pdf", "My CV + grade sheet",true);
+            Path cvPath = JobTracker.dataFile("Ofer Avioz - CV + gradesheet.pdf"); //It's my real CV - Take a look ;)
+            tracker.uploadDocument(demo, "English CV", "File", cvPath.toString(), "My CV + grade sheet",true);
             tracker.uploadDocument(demo, "GitHub", "URL", "https://github.com/oferavioz", "My GitHub profile", false);
 
             tracker.addEventToCalendar(demo, new Event("Interview", "Intel technical interview", LocalDateTime.of(2026,1,28, 11,0), 120, "Prepare for coding questions."));
             tracker.addEventToCalendar(demo, new Event("Follow-up", "Follow-up with Google recruiter", LocalDateTime.now().plusHours(22), 20, "Send thank you email after interview."));
             tracker.addEventToCalendar(demo, new Event("Phone Call", "Phone screen with Matrix recruiter", LocalDateTime.now().plusHours(24), 120, "Prepare for phone interview."));
 
+            // To open gui manually, and run everything by hand - uncomment the next line:
             //new JobTrackerGUI(tracker);
 
-
-            JobTrackerGUI gui = new JobTrackerGUI(tracker);
-
             // === DEMO: uncomment ONE part at a time ===
+            // --- Instructions ---
+            // When running each part, please wait for the current action to complete!
+            // Do not click, touch, or exit pages until demo says that the part is complete.
+            // You dont need to do anything, the demo will perform all actions automatically.
+            // When the demonstration of the part is complete, you will receive a message dialog
+            // and you can exit the part window and proceed to the next part.
+            // Enjoy the ride :)
+
+            JobTrackerGUI gui = new JobTrackerGUI(tracker); // Initialize GUI first for demo use, then open manually part by part
+
             //Demo.part1(gui); // Part 1: Open + Register + Login
             //Demo.part2(gui); // Part 2: Menu + Profile + Edit Profile + Change Password
-            //Demo.part3(gui); // Part 3: Documents (add, show details, edit, show as : links/files/primary, remove)
-            //Demo.part4(gui); // Part 4: Add Application + Processes + Details actions
-            //Demo.part5(gui); // Part 5: Events (add/edit/remove)
-            //Demo.part6(gui); // Part 6: Notifications
+            //Demo.part3(gui); // Part 3: Documents - add, show details, edit, show as : links/files/primary, remove
+            //Demo.part4(gui); // Part 4: Add Application + Processes + Details actions + edit + remove
+            //Demo.part5(gui); // Part 5: Events - add event + show details + edit + remove
+            //Demo.part6(gui); // Part 6: Notifications - how it works + show notifications, add notification (new event)
             //Demo.part7(gui); // Part 7: Statistics + Export
 
+            //-------------------------------------------------------------------------------------
             // MenuBar : I wanted to show menubar functionality in the demo but unfortunately,
             // it is not possble to do it automatically, so please test it manually. Thank you :)
             // MenuBar guide :
-            // FILE -
+            // FILE - exit (closes the program, saves data to files), export statistics (to txt file or HTML), logout (logs out current user)
+            // EDIT - clear selections in current panel, reset current form fields
+            // VIEW - show debug logs (console output of actions performed)
+            // HELP - about (shows short info about project), short instructions (shows brief guide on how to use the program- basic functions)
+            // GO TO - navigation mini menu to quickly switch between main panels (main, personal area, documents, applications, calendar, notifications, statistics)
 
         });
     }

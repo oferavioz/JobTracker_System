@@ -45,7 +45,16 @@ public class Demo {
     // =========================
     public static void part1(JobTrackerGUI gui) {
         new Thread(() -> {
-            pause();
+            pause(600);
+
+            showInfo(
+                    "Demo - Part 1",
+                    "We will now start Part 1 of the demo.\n\n" +
+                            "In this part we will demonstrate how to register to the system,\n" +
+                            "and then log in with the newly created user.",
+                    6500
+            );
+            pause(7100);
 
             // Open Register screen
             showCard(gui, getStaticCard("C_REGISTER"));
@@ -75,6 +84,15 @@ public class Demo {
             // Login with the new user
             ensureLogin(gui, email, pass);
 
+            pause(900);
+            showInfo(
+                    "Demo - Part 1",
+                    "Part 1 completed.\n" +
+                            "We registered a new user and then logged in successfully.",
+                    5200
+            );
+            pause(5700);
+
         }, "Demo-Part1").start();
     }
 
@@ -85,7 +103,16 @@ public class Demo {
         new Thread(() -> {
             pause();
             ensureLogin(gui, pickEmail(), pickPass());
-            pause();
+            pause(600);
+
+            showInfo(
+                    "Demo - Part 2",
+                    "We will now start Part 2 of the demo.\n\n" +
+                            "In this part we will demonstrate:\n" +
+                            "1) Entering the Personal Area\n" +
+                            "2) Editing profile details\n" +
+                            "3) Changing the password (invalid attempt, then a valid one).", 8000);
+            pause(8600);
 
             // Menu -> Personal Area
             showCard(gui, getStaticCard("C_MENU"));
@@ -98,12 +125,18 @@ public class Demo {
             });
             pause(1000);
 
+            showInfo(
+                    "Demo - Edit Profile",
+                    "This is the user's personal area. \nNext: we will edit the profile details.\n" +
+                            "We will update the full name, phone number, and field of search.",
+                    5200);
+            pause(5700);
+
             // Edit Profile dialog: type and OK
             autoTypeConfirmDialogByLabelAndOk(Map.of(
                     "Full name :", "Demo User Edited",
                     "Phone :", "054-2222222",
-                    "Field of search :", "Software"
-            ), DIALOG_TIMEOUT_MS, TYPE_DELAY_MS);
+                    "Field of search :", "Software"), DIALOG_TIMEOUT_MS, TYPE_DELAY_MS);
 
             runOnEdt(() -> call(gui, "openEditProfileDialog"));
             pause(1500);
@@ -111,20 +144,32 @@ public class Demo {
             // =========================
             // Change Password - attempt #1 (invalid: same password)
             // =========================
+            showInfo(
+                    "Demo - Change Password",
+                    "Next: we will change the password.\n" +
+                            "Important: the new password must be DIFFERENT from the old password.\n" +
+                            "First, we will intentionally try an invalid change (same password) to show the validation message.",
+                    8000);
+            pause(8600);
+
             autoTypeConfirmDialogByLabelAndOk(Map.of(
                     "Old password :", pickPass(),
                     "New password :", pickPass(),
-                    "Repeat new password :", pickPass()
-            ), DIALOG_TIMEOUT_MS, TYPE_DELAY_MS);
+                    "Repeat new password :", pickPass()), DIALOG_TIMEOUT_MS, TYPE_DELAY_MS);
 
             runOnEdtLater(() -> call(gui, "openChangePasswordDialog"));
 
-            pause(2600);
+            pause(2200);
 
-            autoPressOkOnNextDialog(DIALOG_TIMEOUT_MS, 1100);
-            pause(1700);
+            autoPressOkOnNextDialog(DIALOG_TIMEOUT_MS, 2400);
+            pause(4200);
 
-            pause(1200);
+            showInfo(
+                    "Demo - Change Password",
+                    "We received a warning because we entered the SAME password as the current one.\n" +
+                            "Now we will enter a completely new password and confirm it correctly.",
+                    6500);
+            pause(7100);
 
             // =========================
             // Change Password - attempt #2 (valid)
@@ -134,8 +179,7 @@ public class Demo {
             autoTypeConfirmDialogByLabelAndOk(Map.of(
                     "Old password :", pickPass(),
                     "New password :", newPass,
-                    "Repeat new password :", newPass
-            ), DIALOG_TIMEOUT_MS, TYPE_DELAY_MS);
+                    "Repeat new password :", newPass), DIALOG_TIMEOUT_MS, TYPE_DELAY_MS);
 
             runOnEdtLater(() -> call(gui, "openChangePasswordDialog"));
 
@@ -147,6 +191,14 @@ public class Demo {
             // Update stored demo password for next parts
             lastDemoPass = newPass;
 
+            showInfo(
+                    "Demo - Part 2",
+                    "Part 2 completed.\n\n" +
+                            "We entered the Personal Area, edited the profile details,\n" +
+                            "and changed the password successfully.",
+                    6500);
+            pause(7100);
+
         }, "Demo-Part2").start();
     }
 
@@ -157,7 +209,24 @@ public class Demo {
         new Thread(() -> {
             pause();
             ensureLogin(gui, pickEmail(), pickPass());
-            pause();
+            pause(600);
+
+            showInfo(
+                    "Demo - Part 3",
+                    "We will now start Part 3 of the demo: Documents.\n" +
+                            "In this part we will demonstrate:\n" +
+                            "1) Entering the Documents screen\n" +
+                            "2) Adding a document from a FILE\n" +
+                            "3) Adding a document from a URL\n" +
+                            "4) Viewing document details and editing the document name\n" +
+                            "5) Using filters (Links / Files / Primary only)\n" +
+                            "6) Removing a document", 9500);
+            pause(10100);
+
+            showInfo(
+                    "Demo - Documents",
+                    "Now we will open the Documents screen and refresh the documents list.", 4200);
+            pause(4700);
 
             // Go to docs
             runOnEdt(() -> {
@@ -167,6 +236,12 @@ public class Demo {
             pause(1300);
 
             String demoFile = createDemoFile();
+
+            showInfo(
+                    "Demo - Documents",
+                    "Next: we will add a new document using a FILE.\n" +
+                            "We will fill the dialog fields and confirm.", 5200);
+            pause(5700);
 
             // Add Document (File) with typing
             autoTypeAddDocumentDialogAndOk(
@@ -178,13 +253,22 @@ public class Demo {
             waitForNoDialogs(3500);
 
             // Add Document (URL) with typing
+            showInfo(
+                    "Demo - Documents",
+                    "Now we will add another document using a URL.\n" +
+                            "Again, we will fill the dialog and confirm.", 5200);
+            pause(5700);
+
             autoTypeAddDocumentDialogAndOk(
                     "Demo URL", "URL", "https://example.com", "Demo url note", false,
-                    DIALOG_TIMEOUT_MS, TYPE_DELAY_MS
-            );
-            runOnEdtLater(() -> call(gui, "openAddDocumentDialog")); // modal
+                    DIALOG_TIMEOUT_MS, TYPE_DELAY_MS);
+            runOnEdtLater(() -> call(gui, "openAddDocumentDialog"));
             pause(1400);
             waitForNoDialogs(3500);
+
+            showInfo("Demo - Documents",
+                    "We added two documents.\nNow we will refresh the list and select a document to view its details.", 5200);
+            pause(5700);
 
             // Ensure docs view refreshed and a selection exists
             runOnEdt(() -> {
@@ -193,6 +277,11 @@ public class Demo {
                 if (list != null && list.getItemCount() > 0) list.select(0);
             });
             pause(600);
+
+            showInfo("Demo - Documents",
+                    "Next: we will open the selected document details.\n" +
+                            "Inside the details window, we will click Edit and change the document name.", 6200);
+            pause(6700);
 
             // ---- Open Details (IMPORTANT: async, because details dialog is modal JDialog) ----
             runOnEdtLater(() -> call(gui, "detailsSelectedAwtDoc"));
@@ -204,6 +293,12 @@ public class Demo {
                             (findButtonByText(d, "Edit") != null && findButtonByText(d, "Close") != null))
             );
             if (detailsDlg == null) return;
+            pause(1000);
+
+            showInfo("Demo - Documents",
+                    "Now we will edit the document name.\n" +
+                            "We will change it to: \"LinkedIn Profile 1122\" and confirm.", 5200);
+            pause(5700);
 
             // Click "Edit" in Details
             runOnEdtLater(() -> {
@@ -220,8 +315,7 @@ public class Demo {
                 editDlg = waitForDialog(DIALOG_TIMEOUT_MS, d ->
                         d.isShowing()
                                 && findAll(d, JTextField.class).size() >= 2
-                                && findAnyButton(d, "OK", "Ok", "Save", "Update") != null
-                );
+                                && findAnyButton(d, "OK", "Ok", "Save", "Update") != null);
             }
             if (editDlg == null) return;
 
@@ -245,6 +339,11 @@ public class Demo {
             waitForNoDialogs(3500);
             pause(400);
 
+            showInfo("Demo - Documents",
+                    "Next: we will demonstrate the document filters.\n" +
+                            "We will switch between Links-only, Files-only, and Primary-only.", 6500);
+            pause(7000);
+
             // === Filters: show once Links, once Files, once Primary only ===
             showInfo("Demo - Documents", "Now showing: LINKS only", 2200);
             pause(2300);
@@ -259,17 +358,26 @@ public class Demo {
             setDocsAwtFilter(gui, "All", true);
 
             // Back to normal view for remove
+            showInfo("Demo - Documents",
+                    "Now we will return to the full list and remove the document we edited.\n" +
+                            "We will select \"LinkedIn Profile 1122\" and confirm the removal dialog.", 6500);
+            pause(7000);
+
             setDocsAwtFilter(gui, "All", false);
             selectAwtDocByContains(gui, "LinkedIn Profile 1122");
 
-            // Remove selected doc (Confirm OK) - async because it opens modal confirm dialog
-            showInfo("Demo - Documents", "Next: Remove the selected document.", 3500);
-            pause(3600);
-
             autoPressOkOnNextDialog(DIALOG_TIMEOUT_MS, 600);
-            runOnEdtLater(() -> call(gui, "removeSelectedAwtDoc")); // modal confirm
+            runOnEdtLater(() -> call(gui, "removeSelectedAwtDoc"));
             pause(1200);
             waitForNoDialogs(3500);
+
+            showInfo(
+                    "Demo - Part 3",
+                    "Part 3 completed.\n\n" +
+                            "We added documents (File + URL), edited a document name,\n" +
+                            "used filters, and removed a document successfully.", 7000);
+            pause(7600);
+
 
         }, "Demo-Part3").start();
     }
@@ -309,14 +417,25 @@ public class Demo {
             // -----------------------------------------
             // Step 1: Add Application form (with scrolling)
             // -----------------------------------------
-            showInfo("Demo - Processes",
-                    "We will now add a new application and fill the entire form.\n" +
-                            "We will scroll while typing so you can see all fields being filled.",
-                    4800);
-            pause(5200);
+            showInfo("Demo – Processes",
+                    "Part 4 – Processes\n\n" +
+                            "What we will do:\n" +
+                            "1) Create a new application and fill the entire form\n" +
+                            "2) Open 'My Processes' and see it in the list\n" +
+                            "3) Open details and edit: Status / Stage / Source / Note\n" +
+                            "4) Demonstrate communication with a contact\n" +
+                            "5) Withdraw, then Remove to see the list update",
+                    8000);
+            pause(8500);
 
             showCard(gui, getStaticCard("C_ADD_APP"));
             pause(1400);
+
+            showInfo("Demo - New Application",
+                    "We are now in the 'Add New Application' form.\n" +
+                            "We will fill all fields step-by-step, scrolling down as needed.",
+                    5200);
+            pause(5700);
 
             String pid = "PDEMO_" + (System.currentTimeMillis() % 100000);
 
@@ -388,8 +507,8 @@ public class Demo {
             showInfo("Demo - My Processes",
                     "You can now see the new process in the list.\n" +
                             "Next, we will open its details and edit it.",
-                    4500);
-            pause(4900);
+                    4900);
+            pause(5300);
 
             ApplyFor app = getFirstApplicationFromList(gui);
             if (app == null) return;
@@ -397,14 +516,43 @@ public class Demo {
             runOnEdtLater(() -> call(gui, "openProcessDetails", new Class[]{ApplyFor.class}, new Object[]{app}));
             pause(1700);
 
+            showInfo("Demo - process details",
+                    "This is the process details window for the newly created process.\n" +
+                            "Here, we can view all information and perform various actions.\n"+
+                            "For instance - we can see the company details ->",
+                    6500);
+            pause(7000);
+
+            autoPressOkOnNextDialog(DIALOG_TIMEOUT_MS, 5000);
+            runOnEdtLater(() -> {
+                JButton b = findButtonInActiveFrame("View company's details");
+                if (b == null) b = findButtonInActiveFrame("View Company Details");
+                if (b == null) b = findButtonInActiveFrame("Company Info");
+                if (b != null) b.doClick();
+            });
+            pause(2200);
+            waitForNoDialogs(6000);
+
+            showInfo("Demo – Company Details Shown",
+                    "Now that we reviewed the company details,\n" +
+                            "We can also view the last logged communication with the contact\n" +
+                            "Because this is a new process, there is no communication yet.\n" + "(we will add some later)",
+                    6000);
+            pause(6400);
+
+            autoPressOkOnNextDialog(DIALOG_TIMEOUT_MS, 6000);
+            runOnEdtLater(() -> clickButtonField(gui, "pdViewLastContactBtn"));
+            pause(2200);
+            waitForNoDialogs(7000);
+
             // -----------------------------------------
             // Step 4: Edit details (status + stage + source + note)
             // -----------------------------------------
             showInfo("Demo - Process Details",
                     "Now we will edit the process details:\n" +
                             "toggle status, change stage, update source, and add a note.",
-                    4200);
-            pause(4600);
+                    5000);
+            pause(5400);
 
             runOnEdtLater(() -> clickButtonField(gui, "pdToggleStatusBtn"));
             pause(1200);
@@ -435,18 +583,16 @@ public class Demo {
             });
             pause(100);
 
-            showInfo(
-                    "Demo - My Processes",
+            showInfo("Demo - My Processes",
                     "Changes were saved (stage / source / note / status).\n\n" +
                             "Color explanation in the list:\n" +
                             "• Green = active processes\n" +
                             "• Yellow = overdue processes\n" +
                             "• Red = final stage (Withdrawn / Rejected / Offer)\n" +
                             "• Grey = not active processes" +
-                            "\nTurned grey because we toggled status to Not Active.",
-                    7000
-            );
-            pause(7300);
+                            "\n\nProcess turned grey because we toggled status to Not Active.",
+                    8500);
+            pause(9300);
 
             // Re-open details
             ApplyFor appAgain = getFirstApplicationFromList(gui);
@@ -461,21 +607,8 @@ public class Demo {
             showInfo("Demo - Communication",
                     "Now we will demonstrate adding communication with the contact.\n" +
                             "After logging it, we will view the updated communication details.",
-                    5600);
-            pause(6100);
-
-            // (Optional) Add/Edit Contact dialog (typing + OK)
-            autoTypeSimple4FieldsDialogAndOk("Dana Levi", "R&D", "dana@demo.com", "054-1234567",
-                    DIALOG_TIMEOUT_MS, TYPE_DELAY_MS);
-
-            runOnEdtLater(() -> {
-                JButton b = findButtonInActiveFrame("Add / Edit Contact");
-                if (b != null) b.doClick();
-            });
-            autoPressOkOnNextDialog(DIALOG_TIMEOUT_MS, 3000);
-            pause(1500);
-
-            pause(2000);
+                    6500);
+            pause(7000);
 
             // Log Communication dialog (typing + OK)
             autoTypeLogCommunicationDialogAndOk(
@@ -494,7 +627,7 @@ public class Demo {
             // View Last Contact (shows updated communication)
             autoPressOkOnNextDialog(DIALOG_TIMEOUT_MS, 4000);
             runOnEdtLater(() -> clickButtonField(gui, "pdViewLastContactBtn"));
-            pause(5000);
+            pause(6000);
 
             // -----------------------------------------
             // Step 6: Withdraw demo + return to processes and see red
@@ -502,8 +635,8 @@ public class Demo {
             showInfo("Demo - Withdraw",
                     "Now we will demonstrate what 'Withdraw' means:\n" +
                             "withdrawing the application from the process.",
-                    4600);
-            pause(5100);
+                    5000);
+            pause(5600);
 
             autoPressOkOnNextDialog(DIALOG_TIMEOUT_MS, 1100);
             runOnEdtLater(() -> {
@@ -524,9 +657,8 @@ public class Demo {
             pause(1600);
 
             showInfo("Demo - My Processes",
-                    "Back in the list, you should now see the process changed accordingly\n" +
-                            "Turned red (final stage)",
-                    5200);
+                    "Back in the list, you should now see the process changed accordingly.\n" +
+                            "It's color turned red (final stage)", 5200);
             pause(5700);
 
             // -----------------------------------------
@@ -563,10 +695,12 @@ public class Demo {
             });
             pause(1000);
 
+            showInfo("Demo - process Removed",
+                    "The process was removed successfully.\n" ,4200);
+            pause(4600);
+
             showInfo("Demo - Done",
-                    "The process was removed successfully.\n" +
-                            "This concludes Part 4 of the demo.",
-                    4200);
+                    "Part 4 completed\n" ,4200);
             pause(4600);
 
         }, "Demo-Part4").start();
@@ -579,8 +713,8 @@ public class Demo {
         new Thread(() -> {
 
             // --- tuned timings (less dialogs, more watching time) ---
-            final int INFO_MS = 5200;      // normal info bubble time
-            final int WATCH_MS = 6000;     // time to watch calendar changes
+            final int INFO_MS = 5200; // normal info bubble time
+            final int WATCH_MS = 6000; // time to watch calendar changes
             final int EDIT_WATCH_MS = 4200; // time to watch edit form before saving
             final int ERROR_WATCH_MS = 7000; // keep error dialog long
 
@@ -590,8 +724,15 @@ public class Demo {
             ensureLogin(gui, pickEmail(), pickPass());
             pause(600);
 
-            showInfo("Demo - Events",
-                    "Part 5: Events.\nWe will demonstrate the calendar, adding, viewing, editing, conflict detection, and removing an event.",
+            showInfo("Demo – Events (Part 5)",
+                    "Part 5 - Events\n\n" +
+                            "What we will do:\n" +
+                    "In this part we will:\n" +
+                            "1) Open the calendar\n" +
+                            "2) Add a new event\n" +
+                            "3) Edit the event\n" +
+                            "4) Demonstrate an overlap conflict\n" +
+                            "5) Remove the event",
                     INFO_MS);
             pause(INFO_MS + 500);
 
@@ -605,15 +746,17 @@ public class Demo {
             pause(1400);
 
             // Show message that we are in calendar
-            showInfo("Demo - Events",
-                    "This is the calendar.\nYou can double-click a day to view its events.",
+            showInfo("Demo – Calendar View",
+                    "This is your calendar.\n" +
+                            "Tip: You can double-click any day to view its events.",
                     INFO_MS);
             pause(INFO_MS + 600);
 
             // -------------------------
             // Add event (+2 days)
             // -------------------------
-            showInfo("Demo - Events", "Now we will add a new event (+2 days).", INFO_MS);
+            showInfo("Demo – Add Event",
+                    "Now we will add a new event scheduled for +2 days from today.", INFO_MS);
             pause(INFO_MS + 600);
 
             LocalDateTime createdDT = LocalDateTime.now().plusDays(2).withHour(10).withMinute(30);
@@ -641,9 +784,10 @@ public class Demo {
             pause(900);
 
             // IMPORTANT: give real time to look after adding
-            showInfo("Demo - Events",
-                    "The event was added.\nTake a moment to see it in the calendar.",
-                    WATCH_MS-2000);
+            showInfo("Demo – Event Added",
+                    "The event was added successfully.\n" +
+                            "Take a moment to see it appear in the calendar.",
+                    WATCH_MS - 2000);
             pause(10000);
             waitForNoDialogs(2000);
 
@@ -651,8 +795,9 @@ public class Demo {
             // View tomorrow (existing 2 events)
             // We show the events via internal dialog
             // -------------------------
-            showInfo("Demo - Events",
-                    "Now we will view tomorrow.\nTomorrow already has existing events.",
+            showInfo("Demo – View a Busy Day",
+                    "Now we will open tomorrow.\n" +
+                            "Tomorrow already has events, so you can see how the daily list looks.",
                     INFO_MS);
             pause(INFO_MS + 600);
 
@@ -693,7 +838,12 @@ public class Demo {
             // -------------------------
             // Edit our created event
             // -------------------------
-            showInfo("Demo - Events", "Now we will edit the event we created.", INFO_MS);
+            showInfo("Demo – Edit Event",
+                    "Now we will edit the event we created:\n" +
+                            "• Change title\n" +
+                            "• Move it to another day\n" +
+                            "• Update duration and notes",
+                    INFO_MS);
             pause(INFO_MS + 600);
 
             // Set selectedDay = createdDay so Edit list filters correctly
@@ -744,7 +894,7 @@ public class Demo {
             typeArea(gui, "editEventNotesTA", "Updated in Demo.part5 (+1 day, +20 minutes)", TYPE_DELAY_AREA_MS);
 
             // Let the user SEE the edit screen before saving
-            pause(EDIT_WATCH_MS);
+            pause(EDIT_WATCH_MS-1000);
 
             autoPressOkOnNextDialog(DIALOG_TIMEOUT_MS, 2200);
             runOnEdt(() -> {
@@ -759,9 +909,10 @@ public class Demo {
             pause(2400);
 
             // Explain changes AFTER saving
-            showInfo("Demo - Events",
-                    "Event updated.\nNew date/time: " + editedWhen + "\nNew duration: " + editedDur + " minutes.",
-                    INFO_MS-1500);
+            showInfo("Demo – Changes Saved",
+                    "Event updated successfully.\n" +
+                            "New date/time: " + editedWhen + "\n" +
+                            "New duration: " + editedDur + " minutes", INFO_MS);
             pause(INFO_MS + 600);
 
             // Show the moved day events to demonstrate changes
@@ -796,12 +947,12 @@ public class Demo {
             // -------------------------
             // Conflict demo:
             // Our event vs an existing event tomorrow
-            // IMPORTANT: show the invalid attempt screen BEFORE saving
             // -------------------------
-            showInfo("Demo - Events",
-                    "Next: conflict warning.\nWe will try to set our event time to overlap with an existing event tomorrow.",
-                    INFO_MS);
-            pause(INFO_MS + 600);
+            showInfo("Demo – Conflict Warning",
+                    "Next we will demonstrate overlap validation.\n" +
+                            "We will try setting our event time to overlap with an existing event.\n" +
+                            "You should see a warning message and the change will not be saved.", INFO_MS+1000);
+            pause(INFO_MS + 1600);
 
             // Step 1: get a real existing time from tomorrow events (first one)
             LocalDateTime conflictDT = null;
@@ -875,7 +1026,9 @@ public class Demo {
             // -------------------------
             // Remove the event
             // -------------------------
-            showInfo("Demo - Events", "Now we will remove the event we created.", INFO_MS);
+            showInfo("Demo – Remove Event",
+                    "Now we will remove the event we created.\n" +
+                            "After removal, it should disappear from the list and the calendar.", INFO_MS);
             pause(INFO_MS + 600);
 
             runOnEdt(() -> call(gui, "refreshCalendar"));
@@ -928,13 +1081,12 @@ public class Demo {
     // =========================
     public static void part6(JobTrackerGUI gui) {
         new Thread(() -> {
-
             // Slower pacing + emphasize long explanations
-            final int SHORT_MS = 4500;      // short info
-            final int INFO_MS  = 6500;      // normal info
-            final int BIG_MS   = 9000;      // big info (multi-paragraph)
-            final int HUGE_MS  = 13000;     // very big info (the main explanation)
-            final int WATCH_MS = 3400;      // time to watch list/calendar changes
+            final int SHORT_MS = 4500; // short info
+            final int INFO_MS = 6500; // normal info
+            final int BIG_MS = 9000; // big info (multi-paragraph)
+            final int HUGE_MS = 13000; // very big info (the main explanation)
+            final int WATCH_MS = 3400; // time to watch list/calendar changes
 
             pause(500);
 
@@ -947,8 +1099,9 @@ public class Demo {
             pause(1200);
 
             showInfo("Demo - Notifications",
-                    "Part 6: Notifications.\nNow we will demonstrate the notifications feature.\nEntering: My Notifications.",
-                    INFO_MS);
+                    "Part 6 - Notifications\n\n" +
+                            "Now we will demonstrate the notifications feature.\n" +
+                            "Entering: My Notifications.", INFO_MS);
             pause(INFO_MS + 700);
 
             // Enter My Notifications
@@ -1032,7 +1185,7 @@ public class Demo {
             pause(WATCH_MS + 400);
 
             showInfo("Demo - Notifications",
-                    "The selected notification is now marked as seen.\n\n" +
+                    "The selected notification is now marked as seen.\n" +
                             "Additionally, there is an option to mark ALL notifications as 'Seen'.",
                     BIG_MS);
             pause(BIG_MS + 700);
@@ -1230,7 +1383,7 @@ public class Demo {
 
             // Start Part 7 message (shown on main menu)
             showInfo("Demo - Statistics",
-                    "Part 7: Statistics for the current user.\n" +
+                    "Part 7 - Statistics for the current user\n\n" +
                             "We will review the Statistics screen, then change a process to see the impact,\n" +
                             "and finally export the statistics as TXT and HTML.",
                     START_MSG_MS);
@@ -1409,7 +1562,7 @@ public class Demo {
             // --- Export statistics ---
             showInfo("Demo - Export Statistics",
                     "Finally, we will export the statistics to TXT and HTML files.\n" +
-                            "The files will be created in Data folder in the project.",
+                            "The files will be created in \"data\" folder in the project.",
                     MID_MSG_MS);
             pause(MID_MSG_MS + 700);
 
@@ -1430,7 +1583,7 @@ public class Demo {
             waitForNoDialogs(2500);
 
             showInfo("Demo - Export Completed",
-                    "The statistics have been exported as TXT and HTML files in the Data folder.",
+                    "The statistics have been exported as TXT and HTML files in the \"data\" folder.",
                     MID_MSG_MS);
             pause(MID_MSG_MS + 800);
 
