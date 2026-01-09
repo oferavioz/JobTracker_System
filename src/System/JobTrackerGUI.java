@@ -187,7 +187,6 @@ public class JobTrackerGUI extends JFrame {
     // =========================
     // Navigation + Layout
     // =========================
-
     private void addCard(String name, JPanel panel) {
         cards.add(panel, name);
     }
@@ -291,7 +290,6 @@ public class JobTrackerGUI extends JFrame {
         showCard(C_LOGIN, false);
         return false;
     }
-
 
     private void doLogout() {
         activeUser = null;
@@ -2528,7 +2526,6 @@ public class JobTrackerGUI extends JFrame {
 
     private String buildStatisticsTxtContent() throws Exception {
         refreshStats();
-
         String content = tracker.buildUserStatistics(activeUser);
         if (content == null) content = "";
 
@@ -2539,7 +2536,6 @@ public class JobTrackerGUI extends JFrame {
             content += "\n\n====================\nStage breakdown:\n";
             content += stage.isBlank() ? "(no data)\n" : (stage + "\n");
         }
-
         content = content.trim();
         if (content.isEmpty()) return null;
         return content + "\n";
@@ -2574,7 +2570,6 @@ public class JobTrackerGUI extends JFrame {
         if (dir == null || file == null) return;
 
         java.nio.file.Path outPath = new java.io.File(dir, file).toPath();
-
         try {
             saveTxtTo(outPath, content);
             log("Statistics exported to TXT: " + outPath.toAbsolutePath());
@@ -2598,7 +2593,6 @@ public class JobTrackerGUI extends JFrame {
             JOptionPane.showMessageDialog(this, "Failed to build statistics: " + ex.getMessage(), "Export", JOptionPane.ERROR_MESSAGE);
             return;
         }
-
         try {
             saveTxtTo(outPath, content);
             log("Statistics exported to TXT: " + outPath.toAbsolutePath());
@@ -2655,7 +2649,6 @@ public class JobTrackerGUI extends JFrame {
 
     private void exportStatisticsAsHtml() {
         if (!requireLogin()) return;
-
         final String html;
         try {
             html = buildStatisticsHtmlContent();
@@ -2667,7 +2660,6 @@ public class JobTrackerGUI extends JFrame {
             JOptionPane.showMessageDialog(this, "Failed to build statistics: " + ex.getMessage(), "Export", JOptionPane.ERROR_MESSAGE);
             return;
         }
-
         FileDialog fd = new FileDialog(this, "Save statistics as HTML", FileDialog.SAVE);
         fd.setFile("statistics.html");
         fd.setVisible(true);
@@ -2689,7 +2681,6 @@ public class JobTrackerGUI extends JFrame {
 
     public void exportStatisticsHtmlTo(java.nio.file.Path outPath) {
         if (!requireLogin()) return;
-
         final String html;
         try {
             html = buildStatisticsHtmlContent();
@@ -2701,7 +2692,6 @@ public class JobTrackerGUI extends JFrame {
             JOptionPane.showMessageDialog(this, "Failed to build statistics: " + ex.getMessage(), "Export", JOptionPane.ERROR_MESSAGE);
             return;
         }
-
         try {
             saveHtmlTo(outPath, html);
             log("Statistics exported to HTML: " + outPath.toAbsolutePath());

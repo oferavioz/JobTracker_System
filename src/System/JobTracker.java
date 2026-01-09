@@ -127,7 +127,6 @@ public class JobTracker {
     private boolean isUserEvent(UserProfile user, Event event) {
         if (user == null || event == null) return false;
         int id = event.getEventID();
-
         for (NotifyAbout n : notifications) {
             if (n == null) continue;
             if (!sameUser(n.getUser(), user)) continue;
@@ -137,7 +136,7 @@ public class JobTracker {
         return false;
     }
 
-    //avoids duplicates (company and position), updates posting channel if already exists
+    // avoids duplicates (company and position), updates posting channel if already exists
     private Publishes upsertPublish(Company company, JobPosition position, LocalDate publishDate, String postingChannel) {
         if (company == null || position == null) {
             throw new IllegalArgumentException("Company and JobPosition cannot be null.");
@@ -206,7 +205,7 @@ public class JobTracker {
     }
 
     // those methods are used to resolve data directory and files,
-    // so it will work no matter where the project is running from
+    // so it will work no matter where the project is running fromm
     public static Path resolveDataDir() {
         Path data = Paths.get(System.getProperty("user.dir")).resolve("data").normalize().toAbsolutePath();
         try { Files.createDirectories(data); } catch (Exception ignored) {}
@@ -1045,7 +1044,6 @@ public class JobTracker {
         }
         //sort alphabetically
         Collections.sort(winners, String.CASE_INSENSITIVE_ORDER);
-
         if (winners.size() == 1) {
             return winners.get(0) + " (" + max + ")";
         }
@@ -1054,7 +1052,6 @@ public class JobTracker {
 
     public double avgDaysToFirstStageChange(UserProfile user) {
         if (user == null) return 0.0;
-
         long totalHours = 0;
         int count = 0;
 
@@ -1101,7 +1098,6 @@ public class JobTracker {
             String key = start.format(df) + "-" + end.format(df);
             if (out.containsKey(key)) out.put(key, out.get(key) + 1);
         }
-
         return out;
     }
 
@@ -1138,9 +1134,7 @@ public class JobTracker {
     // ===== Helpers exposed for GUI =====
 
     public boolean isFinalStage(ApplicationStage stage) {
-        return stage == ApplicationStage.REJECTED
-                || stage == ApplicationStage.WITHDRAWN
-                || stage == ApplicationStage.OFFER;
+        return stage == ApplicationStage.REJECTED || stage == ApplicationStage.WITHDRAWN || stage == ApplicationStage.OFFER;
     }
 
     public boolean updateStoredDocumentDetails(UserProfile user, String oldName, String newName, String newTarget, String newNote, boolean makePrimary) {
@@ -1167,7 +1161,6 @@ public class JobTracker {
         } else {
             updated.unmarkAsPrimary();
         }
-        // else: do nothing (don't unmark others)
         return true;
     }
 

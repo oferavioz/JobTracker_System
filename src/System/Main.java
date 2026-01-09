@@ -1,6 +1,6 @@
 // Ofer Avioz, 212052385
 
-// --- Project check list ---
+// --- PROJECT CHECK LIST ---
 // Base objects: UserProfile, Company, JobPosition, Event, Document
 // Association classes: ApplyFor, Contact, NotifyAbout, Publishes, Stores
 // Threads: AddApplicationTask, AddEventThread
@@ -57,6 +57,7 @@ public class Main {
 
             Company c1 = new Company("Matrix", "Hi-Tech", "https://www.matrix.co.il");
             JobPosition p1 = new JobPosition("P11111", "Junior Dev", "Hi-Tech", "Kfar Saba", "Full-time", "Active", "Develop and maintain software applications.");
+            // publish date is > 60 days ago, so it will send a system notification about old posting automatically for the user
             ApplyFor app1 = tracker.addApplication(demo, p1, c1, LocalDate.of(2025,10,1), "LinkedIn", "Looking forward to this opportunity!");
             app1.setDateApplied(LocalDateTime.now().minusDays(15));
             tracker.updateApplicationStage(demo, p1.getPositionID(), ApplicationStage.HOME_ASSIGNMENT);
@@ -68,28 +69,37 @@ public class Main {
             tracker.addOrEditContactForPosition(demo, p2.getPositionID(), "Noy Cohen", "HR Manager", "noy123@walla.com", "054-1234567");
             tracker.logLastContactForPosition(demo, p2.getPositionID(), "Email", "Follow-up after submitting CV", LocalDateTime.now().minusDays(2));
 
-            Company c3 = new Company("Google", "Hi-Tech", "https://www.google.com/intl/en/about/");
-            JobPosition p3 = new JobPosition("P33333", "Backend Developer", "Hi-Tech", "Tel Aviv", "Full-time", "Active", "Work on scalable backend systems.");
-            ApplyFor app3 = tracker.addApplication(demo, p3, c3, LocalDate.of(2026,1,1), "Company Website", "");
-            app3.setDateApplied(LocalDateTime.now().minusDays(1));
-            tracker.addOrEditContactForPosition(demo, p3.getPositionID(), "Lior Azulay", "Recruiter", "lioraz@gmail.com", "052-1112222");
-            tracker.logLastContactForPosition(demo, p3.getPositionID(), "Phone", "Initial phone screening", LocalDateTime.of(2026,1,2,12,15));
+            JobPosition p3 = new JobPosition("P33333", "Frontend Developer", "Hi-Tech", "Haifa", "Full-time", "Active", "Work on scalable frontend systems.");
+            ApplyFor app3 = tracker.addApplication(demo, p3, c2, LocalDate.of(2026,1,1), "Company Website", "");
+            app3.setDateApplied(LocalDateTime.now().minusDays(3));
+            tracker.addOrEditContactForPosition(demo, p3.getPositionID(), "Dana Levi", "Recruiter", "DanaL@walla.com", "053-3334444");
+            tracker.logLastContactForPosition(demo, p3.getPositionID(), "Phone", "Initial phone screening", LocalDateTime.now().minusDays(1));
+            tracker.updateApplicationStage(demo, p3.getPositionID(), ApplicationStage.PHONE_CALL);
 
-            JobPosition p4 = new JobPosition("P44444", "Frontend Developer", "Hi-Tech", "Haifa", "Full-time", "Active", "Work on scalable frontend systems.");
-            ApplyFor app4 = tracker.addApplication(demo, p4, c2, LocalDate.of(2026,1,1), "Company Website", "");
-            app4.setDateApplied(LocalDateTime.now().minusDays(3));
-            tracker.addOrEditContactForPosition(demo, p4.getPositionID(), "Dana Levi", "Recruiter", "DanaL@walla.com", "053-3334444");
-            tracker.logLastContactForPosition(demo, p4.getPositionID(), "Phone", "Initial phone screening", LocalDateTime.now().minusDays(1));
-            tracker.updateApplicationStage(demo, p4.getPositionID(), ApplicationStage.PHONE_CALL);
+            Company c3 = new Company("Google", "Hi-Tech", "https://www.google.com/intl/en/about/");
+            JobPosition p4 = new JobPosition("P44444", "Backend Developer", "Hi-Tech", "Tel Aviv", "Part-time", "Active", "Work on scalable backend systems.");
+            ApplyFor app4 = tracker.addApplication(demo, p4, c3, LocalDate.of(2026,1,1), "Company Website", "");
+            app4.setDateApplied(LocalDateTime.now().minusDays(1));
+            tracker.addOrEditContactForPosition(demo, p4.getPositionID(), "Lior Azulay", "Recruiter", "lioraz@gmail.com", "052-1112222");
+            tracker.logLastContactForPosition(demo, p4.getPositionID(), "Phone", "Initial phone screening", LocalDateTime.of(2026,1,2,12,15));
+
+            Company c4 = new Company("Facebook", "Hi-Tech", "https://about.facebook.com/");
+            JobPosition p5 = new JobPosition("P55555", "Data Scientist", "Hi-Tech", "Tel Aviv", "Full-time", "Active", "Analyze and interpret complex data.");
+            ApplyFor app5 = tracker.addApplication(demo, p5, c4, LocalDate.of(2025,12,7), "Referral", "Excited about this role!");
+            app5.setDateApplied(LocalDateTime.now().minusDays(20));
+            tracker.updateApplicationStage(demo, p5.getPositionID(), ApplicationStage.REJECTED);
+            tracker.addOrEditContactForPosition(demo, p5.getPositionID(), "Roni Shaked", "HR Specialist", "roni11@gmail.com", "054-5556666");
+            tracker.logLastContactForPosition(demo, p5.getPositionID(), "Email", "Received rejection email", LocalDateTime.now().minusDays(5));
 
             tracker.uploadDocument(demo, "LinkedIn Profile", "URL", "https://www.linkedin.com/in/oferavioz/", "Profile link on LinkedIn", true);
-            Path cvPath = JobTracker.dataFile("Ofer Avioz - CV + gradesheet.pdf"); //It's my real CV - Take a look ;)
+            Path cvPath = JobTracker.dataFile("Ofer Avioz - CV + gradesheet.pdf"); //It's my real CV - Take a look :)
             tracker.uploadDocument(demo, "English CV", "File", cvPath.toString(), "My CV + grade sheet",true);
             tracker.uploadDocument(demo, "GitHub", "URL", "https://github.com/oferavioz", "My GitHub profile", false);
 
-            tracker.addEventToCalendar(demo, new Event("Interview", "Intel technical interview", LocalDateTime.of(2026,1,28, 11,0), 120, "Prepare for coding questions."));
+            tracker.addEventToCalendar(demo, new Event("Interview", "Intel technical interview", LocalDateTime.now().plusDays(9).minusHours(2).minusMinutes(12), 120, "Prepare for coding questions."));
             tracker.addEventToCalendar(demo, new Event("Follow-up", "Follow-up with Google recruiter", LocalDateTime.now().plusHours(22), 20, "Send thank you email after interview."));
             tracker.addEventToCalendar(demo, new Event("Phone Call", "Phone screen with Matrix recruiter", LocalDateTime.now().plusHours(24), 120, "Prepare for phone interview."));
+            tracker.addEventToCalendar(demo, new Event("Deadline", "Submitting home-assignment", LocalDateTime.now().plusDays(5).withHour(10).withMinute(0), 10, "Complete and submit the assignment - no later than 10 AM."));
 
             // To open gui manually, and run everything by hand - uncomment the next line:
             //new JobTrackerGUI(tracker);
@@ -115,7 +125,7 @@ public class Main {
 
             //-------------------------------------------------------------------------------------
             // MenuBar : I wanted to show menubar functionality in the demo but unfortunately,
-            // it is not possble to do it automatically, so please test it manually. Thank you :)
+            // it is not possble to do it automatically (or not automatically), so please test it manually. Thank you :)
             // MenuBar guide :
             // FILE - exit (closes the program, saves data to files), export statistics (to txt file or HTML), logout (logs out current user)
             // EDIT - clear selections in current panel, reset current form fields

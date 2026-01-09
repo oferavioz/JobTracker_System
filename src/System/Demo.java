@@ -1767,17 +1767,6 @@ public class Demo {
         pause(250);
     }
 
-    private static void waitUntilShowing(JobTrackerGUI gui, String fieldName, long timeoutMs) {
-        long start = System.currentTimeMillis();
-        while (System.currentTimeMillis() - start < timeoutMs) {
-            try {
-                Object o = get(gui, fieldName);
-                if (o instanceof Component c && c.isShowing()) return;
-            } catch (Exception ignored) {}
-            pause(40);
-        }
-    }
-
     private static void clickCalendarDay(JobTrackerGUI gui, LocalDate date, int clickCount) {
         if (date == null) return;
         String dayTxt = String.valueOf(date.getDayOfMonth());
@@ -1875,21 +1864,6 @@ public class Demo {
         return null;
     }
 
-    // -----------------------------------------
-    // Remove process button (best effort)
-    // -----------------------------------------
-    private static void clickRemoveProcessButtonBestEffort() {
-        String[] candidates = {
-                "Remove", "Delete", "Remove Process", "Remove Application", "Remove This Process", "Delete Process"
-        };
-        JButton b = null;
-        for (String c : candidates) {
-            b = findButtonInActiveFrame(c);
-            if (b != null) break;
-        }
-        if (b != null) b.doClick();
-    }
-
     // If the GUI suddenly requires login again, auto-login and continue.
     private static void ensureStillLoggedIn(JobTrackerGUI gui) {
         // Case A: ANY dialog that contains "login" text (title/labels) -> close it and login
@@ -1978,7 +1952,6 @@ public class Demo {
             t.setInitialDelay(0);
             t.start();
         });
-
         try { latch.await(); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
     }
 
@@ -2036,7 +2009,6 @@ public class Demo {
                 alreadyShowing.add(d);
             }
         }
-
         new Thread(() -> {
             JDialog dlg = waitForDialog(timeoutMs, d -> {
                 if (!d.isShowing()) return false;
@@ -2115,23 +2087,6 @@ public class Demo {
             pause(200);
             runOnEdtLater(() -> pressOk(dlg));
         }, "Demo-AddDocType").start();
-    }
-
-    private static void autoTypeSimple4FieldsDialogAndOk(String a, String b, String c, String d,
-                                                         long timeoutMs, int charDelayMs) {
-        new Thread(() -> {
-            JDialog dlg = waitForDialog(timeoutMs, dd -> dd.isShowing() && findAll(dd, JTextField.class).size() >= 4);
-            if (dlg == null) return;
-
-            List<JTextField> tfs = findAll(dlg, JTextField.class);
-            if (tfs.size() >= 1) typeComponentBlocking(tfs.get(0), a, charDelayMs);
-            if (tfs.size() >= 2) typeComponentBlocking(tfs.get(1), b, charDelayMs);
-            if (tfs.size() >= 3) typeComponentBlocking(tfs.get(2), c, charDelayMs);
-            if (tfs.size() >= 4) typeComponentBlocking(tfs.get(3), d, charDelayMs);
-
-            pause(200);
-            runOnEdtLater(() -> pressOk(dlg));
-        }, "Demo-AutoType4Fields").start();
     }
 
     private static void autoTypeLogCommunicationDialogAndOk(String method, String subject, String when,

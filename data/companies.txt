@@ -3,3 +3,4 @@ Intel|Hi-Tech|https://www.intel.com/content/www/us/en/homepage.html|Tel Aviv;Hai
 Wix|Hi-Tech|https://www.wix.com|Tel Aviv
 Google|Hi-Tech|https://www.google.com/intl/en/about/|Tel Aviv
 Democorp|Hi-Tech|https://example.com|Tel Aviv
+Facebook|Hi-Tech|https://about.facebook.com/|Tel Aviv
