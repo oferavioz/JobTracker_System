@@ -671,7 +671,7 @@ public class JobTrackerGUI extends JFrame {
         if (res != JOptionPane.OK_OPTION) return;
         try {
             tracker.uploadDocument(activeUser, name.getText(), Objects.toString(type.getSelectedItem(), "File"),
-                    target.getText(), note.getText(), primary.isSelected());
+                    target.getText(), note.getText(), primary.isSelected(), LocalDateTime.now());
             log("Document uploaded.");
             refreshDocs();
         } catch (Exception ex2) {

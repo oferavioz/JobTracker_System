@@ -10,13 +10,14 @@ public class Stores
     private boolean primary;
     private String note;
 
-    public Stores(UserProfile user, Document document, String note) {
+    public Stores(UserProfile user, Document document, String note, LocalDateTime storedAt) {
         setUser(user);
         setDocument(document);
         setPrimary(false);
         setNote(note);
-        setStoredAt(LocalDateTime.now());
+        setStoredAt(storedAt);
     }
+
 
     // Setters
     public void setUser(UserProfile user) {

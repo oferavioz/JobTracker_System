@@ -13,12 +13,12 @@ public class Document
     private static final DateTimeFormatter DOC_FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
-    public Document(String docName, String documentType, String target)
+    public Document(String docName, String documentType, String target, LocalDateTime lastUpdate)
     {
         setDocName(docName);
         setDocumentType(documentType);
         setTarget(target);
-        setLastUpdate(LocalDateTime.now());
+        setLastUpdate(lastUpdate);
     }
 
     // Setters

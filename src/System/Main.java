@@ -9,7 +9,7 @@
 // System controller class: JobTracker (all logic + data management + a little GUI support)
 // External files: Company data (save and load), Documents (load only, saved for the user), Statistics export (txt + HTML)
 // GUI class and components: JobTrackerGUI ->
-// AWT requirements: button, Label, Checkbox, list, Choice + Menubar, menu, menuItem, popupMenu (all in documents + menubar)
+// AWT requirements: button, Label, Checkbox, list, Choice + Menubar, menu, menuItem, popupMenu - right click on a document (all in documents + menubar)
 // Everything else is implemented by swing components (more flexible and comfortable to use)..
 
 // IN ADDITION - I built a demo class that automatically demonstrates the program features step by step.
@@ -93,10 +93,13 @@ public class Main {
             tracker.addOrEditContactForPosition(demo, p5.getPositionID(), "Roni Shaked", "HR Specialist", "roni11@gmail.com", "054-5556666");
             tracker.logLastContactForPosition(demo, p5.getPositionID(), "Email", "Received rejection email", LocalDateTime.now().minusDays(5));
 
-            tracker.uploadDocument(demo, "LinkedIn Profile", "URL", "https://www.linkedin.com/in/oferavioz/", "Profile link on LinkedIn", true);
+            tracker.uploadDocument(demo, "LinkedIn Profile", "URL", "https://www.linkedin.com/in/oferavioz/", "Profile link on LinkedIn", true, LocalDateTime.of(2025,10,1,12,0));
             Path cvPath = JobTracker.dataFile("Ofer Avioz - CV + gradesheet.pdf"); //It's my real CV - Take a look :)
-            tracker.uploadDocument(demo, "English CV", "File", cvPath.toString(), "My CV + grade sheet",true);
-            tracker.uploadDocument(demo, "GitHub", "URL", "https://github.com/oferavioz", "My GitHub profile", false);
+            tracker.uploadDocument(demo, "English CV", "File", cvPath.toString(), "My CV + grade sheet",true, LocalDateTime.of(2025,10,1,12,0));
+            tracker.uploadDocument(demo, "GitHub", "URL", "https://github.com/oferavioz", "My GitHub profile", false, LocalDateTime.of(2025,10,1,12,0));
+            // An example for updating the document's details - this case changing the note, the last update date is changed now
+            // there are many options of course - name, target, primary, note
+            tracker.updateDocumentNote(demo, "GitHub", "Updated profile link on GitHub");
 
             tracker.addEventToCalendar(demo, new Event("Interview", "Intel technical interview", LocalDateTime.now().plusDays(9).minusHours(2).minusMinutes(12), 120, "Prepare for coding questions."));
             tracker.addEventToCalendar(demo, new Event("Follow-up", "Follow-up with Google recruiter", LocalDateTime.now().plusHours(22), 20, "Send thank you email after interview."));
@@ -104,9 +107,11 @@ public class Main {
             tracker.addEventToCalendar(demo, new Event("Deadline", "Submitting home-assignment", LocalDateTime.now().plusDays(5).withHour(10).withMinute(0), 10, "Complete and submit the assignment - no later than 10 AM."));
 
             // To open gui manually, and run everything by hand - uncomment the next line:
-            new JobTrackerGUI(tracker);
+            //new JobTrackerGUI(tracker);
 
+            // ==========================================
             // === DEMO: uncomment ONE part at a time ===
+            // ==========================================
             // --- Instructions ---
             // When running each part, please wait for the current action to complete!
             // Do not click, touch, or exit pages until demo says that the part is complete.
@@ -115,7 +120,8 @@ public class Main {
             // and you can exit the part window and proceed to the next part.
             // Enjoy the ride :)
 
-            //JobTrackerGUI gui = new JobTrackerGUI(tracker); // Initialize GUI first for demo use, then open manually part by part
+            // Initialize GUI first for demo use, then open manually part by part
+            JobTrackerGUI gui = new JobTrackerGUI(tracker);
 
             //Demo.part1(gui); // Part 1: Open + Register + Login
             //Demo.part2(gui); // Part 2: Menu + Profile + Edit Profile + Change Password
@@ -127,7 +133,7 @@ public class Main {
 
             //-------------------------------------------------------------------------------------
             // MenuBar : I wanted to show menubar functionality in the demo but unfortunately,
-            // it is not possble to do it automatically (or not automatically), so please test it manually. Thank you :)
+            // it is not possible to do it automatically (or not automatically), so please test it manually. Thank you :)
             // MenuBar guide :
             // FILE - exit (closes the program, saves data to files), export statistics (to txt file or HTML), logout (logs out current user)
             // EDIT - clear selections in current panel, reset current form fields

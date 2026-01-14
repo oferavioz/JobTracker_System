@@ -340,7 +340,8 @@ public class Demo {
             pause(400);
 
             showInfo("Demo - Documents",
-                    "Next: we will demonstrate the document filters.\n" +
+                    "Now, you can see the updated document name in the list + new last updated time.\n\n" +
+                            "Next: we will demonstrate the document filters.\n" +
                             "We will switch between Links-only, Files-only, and Primary-only.", 6500);
             pause(7000);
 

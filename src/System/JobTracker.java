@@ -718,18 +718,21 @@ public class JobTracker {
     // ==================== Documents Methods ===================
     // =========================================================
 
-    public Stores uploadDocument(UserProfile user, String docName, String docType, String target, String note, boolean primary) {
+    public Stores uploadDocument(UserProfile user, String docName, String docType, String target, String note, boolean primary, LocalDateTime uploadDate) {
         if (user == null) throw new IllegalArgumentException("User cannot be null.");
         String dn = norm(docName);
         if (dn == null || dn.isEmpty()) throw new IllegalArgumentException("Document name cannot be empty.");
         if (findStoreByDocName(user, dn) != null) {
             throw new IllegalArgumentException("Document with the same name already exists for you: " + dn);
         }
+        if (uploadDate == null) {
+            uploadDate = LocalDateTime.now();
+        }
 
-        Document document = new Document(dn, docType, target);
+        Document document = new Document(dn, docType, target, uploadDate);
         documents.add(document);
 
-        Stores link = new Stores(user, document, note);
+        Stores link = new Stores(user, document, note, uploadDate);
         if (primary) {
             link.markAsPrimary();
         }
@@ -778,6 +781,7 @@ public class JobTracker {
 
         //allow multiple primaries
         target.markAsPrimary();
+        target.getDocument().setLastUpdate(LocalDateTime.now());
         return true;
     }
 
@@ -800,6 +804,7 @@ public class JobTracker {
         Stores s = findStoreByDocName(user, docName);
         if (s == null) return false;
         s.getDocument().updateTarget(newTarget);
+        s.getDocument().setLastUpdate(LocalDateTime.now());
         return true;
     }
 
@@ -807,6 +812,7 @@ public class JobTracker {
         Stores s = findStoreByDocName(user, docName);
         if (s == null) return false;
         s.updateNote(newNote);
+        s.getDocument().setLastUpdate(LocalDateTime.now());
         return true;
     }
 
