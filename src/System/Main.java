@@ -1,4 +1,6 @@
+// ======================
 // Ofer Avioz, 212052385
+// ======================
 
 // --- PROJECT CHECK LIST ---
 // Base objects: UserProfile, Company, JobPosition, Event, Document
@@ -102,7 +104,7 @@ public class Main {
             tracker.addEventToCalendar(demo, new Event("Deadline", "Submitting home-assignment", LocalDateTime.now().plusDays(5).withHour(10).withMinute(0), 10, "Complete and submit the assignment - no later than 10 AM."));
 
             // To open gui manually, and run everything by hand - uncomment the next line:
-            //new JobTrackerGUI(tracker);
+            new JobTrackerGUI(tracker);
 
             // === DEMO: uncomment ONE part at a time ===
             // --- Instructions ---
@@ -113,7 +115,7 @@ public class Main {
             // and you can exit the part window and proceed to the next part.
             // Enjoy the ride :)
 
-            JobTrackerGUI gui = new JobTrackerGUI(tracker); // Initialize GUI first for demo use, then open manually part by part
+            //JobTrackerGUI gui = new JobTrackerGUI(tracker); // Initialize GUI first for demo use, then open manually part by part
 
             //Demo.part1(gui); // Part 1: Open + Register + Login
             //Demo.part2(gui); // Part 2: Menu + Profile + Edit Profile + Change Password
