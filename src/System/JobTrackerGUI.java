@@ -466,6 +466,8 @@ public class JobTrackerGUI extends JFrame {
                 BorderFactory.createLineBorder(new Color(220, 220, 220), 1, true),
                 new EmptyBorder(20, 25, 20, 25)));
 
+        card.setPreferredSize(new Dimension(700, 500));
+
         GridBagConstraints gc = new GridBagConstraints();
         gc.insets = new Insets(10, 10, 10, 10);
         gc.fill = GridBagConstraints.HORIZONTAL;

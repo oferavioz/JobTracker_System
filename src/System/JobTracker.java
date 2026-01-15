@@ -470,6 +470,7 @@ public class JobTracker {
         return " (" + days + " days ago)";
     }
 
+    //System notification methods - over 60 days since publish
     public void generateOldPublishNotifications(UserProfile user, long thresholdDays) {
         if (user == null) return;
         Vector<ApplyFor> apps = listApplications(user);
@@ -564,6 +565,7 @@ public class JobTracker {
         return true;
     }
 
+    // Overdue = applied more than OVERDUE_DAYS ago and not in final stage
     public boolean isApplicationOverdue(UserProfile user, ApplyFor app) {
         if (user == null || app == null || app.getUserProfile() == null) return false;
         if (!sameUser(app.getUserProfile(), user)) return false;

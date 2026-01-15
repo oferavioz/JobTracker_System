@@ -59,7 +59,7 @@ public class Main {
 
             Company c1 = new Company("Matrix", "Hi-Tech", "https://www.matrix.co.il");
             JobPosition p1 = new JobPosition("P11111", "Junior Dev", "Hi-Tech", "Kfar Saba", "Full-time", "Active", "Develop and maintain software applications.");
-            // publish date is > 60 days ago, so it will send a system notification about old posting automatically for the user
+            // application date is > 60 days ago, so it will send a system notification about old posting automatically for the user
             ApplyFor app1 = tracker.addApplication(demo, p1, c1, LocalDate.of(2025,10,1), "LinkedIn", "Looking forward to this opportunity!");
             app1.setDateApplied(LocalDateTime.now().minusDays(15));
             tracker.updateApplicationStage(demo, p1.getPositionID(), ApplicationStage.HOME_ASSIGNMENT);
