@@ -248,7 +248,7 @@ public class Demo {
                     "Demo File", "File", demoFile, "Demo file note", true,
                     DIALOG_TIMEOUT_MS, TYPE_DELAY_MS
             );
-            runOnEdtLater(() -> call(gui, "openAddDocumentDialog")); // modal JOptionPane
+            runOnEdtLater(() -> call(gui, "openAddDocumentDialog"));
             pause(1400);
             waitForNoDialogs(3500);
 
@@ -1584,7 +1584,8 @@ public class Demo {
             waitForNoDialogs(2500);
 
             showInfo("Demo - Export Completed",
-                    "The statistics have been exported as TXT and HTML files in the \"data\" folder.",
+                    "The statistics have been exported as TXT and HTML files in the \"data\" folder.\n" +
+                            "(The folder is in the project's folder)",
                     MID_MSG_MS);
             pause(MID_MSG_MS + 800);
 
