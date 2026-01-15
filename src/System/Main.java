@@ -10,10 +10,10 @@
 // External files: Company data (save and load), Documents (load only, saved for the user), Statistics export (txt + HTML)
 // GUI class and components: JobTrackerGUI ->
 // AWT requirements: button, Label, Checkbox, list, Choice + Menubar, menu, menuItem, popupMenu - right click on a document (all in documents + menubar)
-// Everything else is implemented by swing components (more flexible and comfortable to use)..
+// Everything else is implemented by swing components (more flexible and comfortable to use..)
 
 // IN ADDITION - I built a demo class that automatically demonstrates the program features step by step.
-// really enjoyed building it, used AI help to do this, hope you like it :)
+// really enjoyed building it, used AI help to do this with timing, hope you like it :)
 
 
 // This is the main class in the program.
@@ -106,7 +106,11 @@ public class Main {
             tracker.addEventToCalendar(demo, new Event("Phone Call", "Phone screen with Matrix recruiter", LocalDateTime.now().plusHours(24), 120, "Prepare for phone interview."));
             tracker.addEventToCalendar(demo, new Event("Deadline", "Submitting home-assignment", LocalDateTime.now().plusDays(5).withHour(10).withMinute(0), 10, "Complete and submit the assignment - no later than 10 AM."));
 
-            // To open gui manually, and run everything by hand - uncomment the next line:
+            // The whole system features can be tested manually by opening the GUI,
+            // the demonstration below runs every function of the system and tests it automatically step by step.
+            // ---------------------------------------------------------------------------------------------------
+
+            // To open gui manually and run everything by hand - uncomment the next line:
             //new JobTrackerGUI(tracker);
 
             // ==========================================
@@ -140,6 +144,11 @@ public class Main {
             // VIEW - show debug logs (console output of actions performed)
             // HELP - about (shows short info about project), short instructions (shows brief guide on how to use the program- basic functions)
             // GO TO - navigation mini menu to quickly switch between main panels (main, personal area, documents, applications, calendar, notifications, statistics)
+            // Menu bar includes - menubar, menu, menuItem, checkbox menu item - all implemented as required.
+
+            // PopupMenu : Right click on a document in the documents panel to see popup menu with options to open, edit or delete the document.
+            // Also, cannot show automatically, please test it manually. Thank you :)
+            //-------------------------------------------------------------------------------------
 
         });
     }
