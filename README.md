@@ -1,36 +1,25 @@
 # JobTracker System
 
-JobTracker System is a Java desktop application developed as a final project for a Java course.
+JobTracker System is a Java desktop application for managing and tracking the job application process.
 
-The system helps users manage and track their job application process, including companies, job positions, applications, interviews, events, documents, notifications, and follow-ups.
+The system helps users organize companies, job positions, job applications, interviews, events, documents, notifications, and follow-up tasks.
 
-## Project Overview
+## Project Description
 
-The goal of the project is to provide an organized system for managing the job search process in one place.
+JobTracker System was developed as a final project in a Java course.
 
-The application allows users to:
-- Manage companies and job positions
-- Track job applications
-- Manage interviews and related events
-- Store and organize documents
-- Receive notifications and follow-up reminders
-- Export information to external files
+The project combines object-oriented programming principles, a graphical user interface, file handling, collections, and basic multithreading.
 
-## Features
+The system includes:
 
 - User profile management
-- Company management
-- Job position management
+- Company and job position management
 - Job application tracking
-- Interview tracking
-- Event and reminder management
+- Interview and event management
 - Document storage
-- Follow-up management
-- Notifications
-- Data export to text and HTML files
-- Graphical User Interface using Java Swing
-- Use of object-oriented programming principles
-- Use of inheritance, associations, collections, and threads
+- Follow-up task management
+- Notifications and reminders
+- Data export to external files
 
 ## Technologies Used
 
@@ -39,23 +28,66 @@ The application allows users to:
 - Object-Oriented Programming
 - Collections
 - Threads
-- File handling
+- File Handling
 - IntelliJ IDEA
+- GitHub
+
+## Main Components
+
+- `UserProfile` – Stores user information
+- `Company` – Represents companies in the system
+- `JobPosition` – Represents available job positions
+- `Application` – Tracks job applications
+- `Interview` – Manages interview details
+- `Event` – Represents events and reminders
+- `Document` – Stores related documents
+- `Notification` – Handles user notifications
+- `FollowUp` – Manages follow-up tasks
+
+## Features
+
+- Graphical user interface using Java Swing
+- Add and manage job applications
+- Manage companies and job positions
+- Track interviews and events
+- Store and organize documents
+- Create notifications and follow-up reminders
+- Export data to `.txt` and `.html` files
+- Use of inheritance and class associations
+- Use of Java collections for data management
+- Use of threads for background tasks
 
 ## Project Structure
 
-```text
 JobTracker_System/
-│
-├── src/
-│   └── Source code files
-│
-├── data/
-│   └── Exported / saved data files
-│
-├── .idea/
-│   └── IntelliJ IDEA project settings
-│
-├── .gitignore
-├── JobTracker.iml
-└── README.md
+
+- `src/` – Java source code files
+- `data/` – Exported and saved data files
+- `.idea/` – IntelliJ IDEA project settings
+- `.gitignore` – Git ignore file
+- `JobTracker.iml` – IntelliJ module file
+- `README.md` – Project documentation
+
+## How to Run
+
+1. Clone the repository:
+
+`git clone https://github.com/oferavioz/JobTracker_System.git`
+
+2. Open the project in IntelliJ IDEA.
+
+3. Make sure a Java SDK is configured.
+
+4. Open the main class of the project.
+
+5. Run the application.
+
+## GitHub Repository
+
+[View Repository](https://github.com/oferavioz/JobTracker_System)
+
+## Developer
+
+Developed by Ofer Avioz  
+Computer Engineering Student  
+Ruppin Academic Center
